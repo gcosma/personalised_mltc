@@ -160,9 +160,9 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
     """Create a network graph visualization"""
     net = Network(height="800px", width="100%", bgcolor='white', font_color='black', directed=True)
     
-    # Set network options to match Colab version
-        net.set_options("""
-        {
+    # Update the network options to match Colab exactly
+    net.set_options("""
+    {
         "nodes": {
             "font": {"size": 16}
         },

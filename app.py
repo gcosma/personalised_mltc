@@ -9,6 +9,8 @@ import random
 import tempfile
 import base64
 from pathlib import Path
+from matplotlib.patches import Patch
+from matplotlib.lines import Line2D
 
 # Complete dictionary of conditions and their categories
 condition_categories = {
@@ -56,19 +58,19 @@ condition_categories = {
 
 # System colors
 SYSTEM_COLORS = {
-    "Blood": "#DC143C",
-    "Circulatory": "#FF4500",
-    "Digestive": "#32CD32",
-    "Ear": "#4169E1",
-    "Endocrine": "#BA55D3",
-    "Eye": "#20B2AA",
-    "Genitourinary": "#DAA520",
-    "Mental": "#8B4513",
-    "Musculoskeletal": "#4682B4",
-    "Neoplasms": "#800080",
-    "Nervous": "#FFD700",
-    "Respiratory": "#48D1CC",
-    "Skin": "#F08080"
+    "Blood": "#DC143C",         # Crimson
+    "Circulatory": "#FF4500",   # Orange Red
+    "Digestive": "#32CD32",     # Lime Green
+    "Ear": "#4169E1",          # Royal Blue
+    "Endocrine": "#BA55D3",     # Medium Orchid
+    "Eye": "#20B2AA",          # Light Sea Green
+    "Genitourinary": "#DAA520", # Goldenrod
+    "Mental": "#8B4513",        # Saddle Brown
+    "Musculoskeletal": "#4682B4", # Steel Blue
+    "Neoplasms": "#800080",     # Purple
+    "Nervous": "#FFD700",       # Gold
+    "Respiratory": "#48D1CC",   # Medium Turquoise
+    "Skin": "#F08080"          # Light Coral
 }
 
 def parse_iqr(iqr_string):
@@ -130,6 +132,12 @@ def perform_sensitivity_analysis(data, or_thresholds=[2.0, 3.0, 4.0, 5.0]):
             if sys_a != sys_b:
                 system_pairs.add(tuple(sorted([sys_a, sys_b])))
                 
+        # Get top 5 patterns
+        top_patterns = filtered_data.nlargest(5, 'OddsRatio')[
+            ['ConditionA', 'ConditionB', 'OddsRatio', 'PairFrequency',
+             'MedianDurationYearsWithIQR', 'DirectionalPercentage', 'Precedence']
+        ].to_dict('records')
+        
         duration_stats = filtered_data['MedianDurationYearsWithIQR'].apply(parse_iqr)
         medians = [x[0] for x in duration_stats if x[0] > 0]
         q1s = [x[1] for x in duration_stats if x[1] > 0]
@@ -142,66 +150,59 @@ def perform_sensitivity_analysis(data, or_thresholds=[2.0, 3.0, 4.0, 5.0]):
             'System_Pairs': len(system_pairs),
             'Median_Duration': round(np.median(medians) if medians else 0, 2),
             'Q1_Duration': round(np.median(q1s) if q1s else 0, 2),
-            'Q3_Duration': round(np.median(q3s) if q3s else 0, 2)
+            'Q3_Duration': round(np.median(q3s) if q3s else 0, 2),
+            'Top_Patterns': top_patterns
         })
     
     return pd.DataFrame(results)
 
 def create_network_graph(data, patient_conditions, min_or, time_horizon=None, time_margin=None):
     """Create a network graph visualization"""
-    net = Network(height="800px", width="100%", bgcolor='white', font_color='black', directed=True)
+    net = Network(notebook=True, bgcolor='white', font_color='black', height="1200px", width="100%", cdn_resources='in_line')
+    
+    # Set network options to match Colab version
     net.set_options("""
     {
-      "nodes": {
-        "font": {
-          "size": 16
+        "nodes": {
+            "font": {"size": 16},
+            "fixed": {"x": false, "y": false}
         },
-        "fixed": {
-          "x": false,
-          "y": false
+        "edges": {
+            "color": {"inherit": false},
+            "font": {
+                "size": 14,
+                "align": "horizontal",
+                "multi": true,
+                "strokeWidth": 0,
+                "background": "rgba(255, 255, 255, 0.7)"
+            },
+            "smooth": {"type": "curvedCW", "roundness": 0.2}
+        },
+        "physics": {
+            "enabled": true,
+            "barnesHut": {
+                "gravitationalConstant": -2000,
+                "centralGravity": 0.3,
+                "springLength": 200,
+                "springConstant": 0.04,
+                "damping": 0.09,
+                "avoidOverlap": 1
+            },
+            "minVelocity": 0.75
+        },
+        "interaction": {
+            "dragNodes": true,
+            "dragView": true,
+            "zoomView": true,
+            "hover": true
         }
-      },
-      "edges": {
-        "color": {
-          "inherit": false
-        },
-        "font": {
-          "size": 12,
-          "align": "middle",
-          "multi": true
-        },
-        "smooth": {
-          "type": "curvedCW",
-          "roundness": 0.2
-        }
-      },
-      "physics": {
-        "enabled": true,
-        "barnesHut": {
-          "gravitationalConstant": -2000,
-          "centralGravity": 0.3,
-          "springLength": 200,
-          "springConstant": 0.04,
-          "damping": 0.09,
-          "avoidOverlap": 1
-        },
-        "minVelocity": 0.75,
-        "stabilization": {
-          "enabled": true,
-          "iterations": 1000,
-          "updateInterval": 25
-        }
-      },
-      "interaction": {
-        "dragNodes": true,
-        "dragView": true,
-        "zoomView": true
-      }
     }
     """)
-    
+
+    # Filter data based on odds ratio
     filtered_data = data[data['OddsRatio'] >= min_or].copy()
     
+    # Find connected conditions
     connected_conditions = set()
     for condition_a in patient_conditions:
         time_filtered_data = filtered_data
@@ -213,13 +214,39 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
         conditions_b = set(time_filtered_data[time_filtered_data['ConditionA'] == condition_a]['ConditionB'])
         connected_conditions.update(conditions_b)
     
+    # Define active conditions
     active_conditions = set(patient_conditions) | connected_conditions
+    
+    # Get active categories and set up positions
+    active_categories = {condition_categories[cond] for cond in active_conditions if cond in condition_categories}
+    radius = 300
+    for i, category in enumerate(sorted(active_categories)):
+        angle = i * (2 * math.pi / len(active_categories))
+        x = radius * math.cos(angle)
+        y = radius * math.sin(angle)
+        
+        # Add legend node
+        color = SYSTEM_COLORS[category]
+        net.add_node(
+            f"legend_{category}",
+            label=category,
+            x=x,
+            y=y,
+            size=10,
+            shape='dot',
+            color={'background': color, 'border': color},
+            font={'size': 16},
+            physics=False,
+            fixed=True
+        )
+    
+    # Add condition nodes
     for condition in active_conditions:
         category = condition_categories.get(condition, "Other")
         color = SYSTEM_COLORS.get(category, "#808080")
         
         if condition in patient_conditions:
-            net.add_node(condition, 
+            net.add_node(condition,
                         label=f"★ {condition}",
                         title=f"{condition}\nCategory: {category}",
                         size=30,
@@ -233,6 +260,7 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
                         color={'background': f"{color}50", 'border': color},
                         physics=True)
     
+    # Add edges with full information
     total_patients = data['TotalPatientsInGroup'].iloc[0]
     for condition_a in patient_conditions:
         relevant_data = filtered_data[filtered_data['ConditionA'] == condition_a]
@@ -261,13 +289,14 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
                 
                 net.add_edge(source,
                            target,
-                           title=edge_label,
                            label=edge_label,
                            width=edge_width,
                            arrows={'to': {'enabled': True, 'scaleFactor': 1}},
                            color={'color': 'rgba(128,128,128,0.7)', 'highlight': 'black'},
+                           font={'align': 'horizontal', 'background': 'rgba(255, 255, 255, 0.7)'},
                            smooth={'type': 'curvedCW', 'roundness': 0.2})
     
+    # Save to HTML file
     with tempfile.NamedTemporaryFile(delete=False, suffix='.html', mode='w', encoding='utf-8') as f:
         net.save_graph(f.name)
         return f.name
@@ -297,18 +326,58 @@ def main():
                 st.header("Sensitivity Analysis")
                 if st.button("Run Sensitivity Analysis"):
                     results = perform_sensitivity_analysis(data)
-                    st.dataframe(results)
                     
+                    # Display results table
+                    st.dataframe(results.drop('Top_Patterns', axis=1))
+                    
+                    # Display top patterns
+                    st.subheader("Top 5 Strongest Trajectories")
+                    patterns_df = pd.DataFrame(results.iloc[0]['Top_Patterns'])
+                    st.dataframe(patterns_df)
+                    
+                    # Create visualization
+                    # Create visualization
                     fig, ax1 = plt.subplots(figsize=(10, 6))
                     ax2 = ax1.twinx()
                     
                     x_vals = results['OR_Threshold'].values
-                    ax1.bar(x_vals, results['Num_Trajectories'], alpha=0.3, color='navy')
-                    ax2.plot(x_vals, results['Coverage_Percent'], 'r-o', linewidth=2)
+                    bar_heights = results['Num_Trajectories']
+                    
+                    # Add bars for trajectories
+                    bars = ax1.bar(x_vals, bar_heights, alpha=0.3, color='navy')
+                    # Add line for coverage
+                    line = ax2.plot(x_vals, results['Coverage_Percent'], 'r-o', linewidth=2)
+                    
+                    # Add scatter for system pairs
+                    sizes = (results['System_Pairs'] / results['System_Pairs'].max()) * 500
+                    scatter = ax2.scatter(x_vals, results['Coverage_Percent'], s=sizes, alpha=0.5, color='darkred')
+                    
+                    # Add IQR information inside bars
+                    for i, row in results.iterrows():
+                        ax1.text(row['OR_Threshold'], bar_heights[i] * 0.5,
+                                f"Median: {row['Median_Duration']:.1f}y\nIQR: [{row['Q1_Duration']:.1f}-{row['Q3_Duration']:.1f}]",
+                                ha='center', va='center', fontsize=10)
                     
                     ax1.set_xlabel('Minimum Odds Ratio Threshold')
                     ax1.set_ylabel('Number of Disease Trajectories')
                     ax2.set_ylabel('Population Coverage (%)')
+                    
+                    # Add legend
+                    legend_elements = [
+                        patches.Patch(facecolor='navy', alpha=0.3,
+                                    label='Number of Disease Trajectories\n(Height of bars)'),
+                        Line2D([0], [0], color='r', marker='o',
+                               label='Population Coverage %\n(Red line)'),
+                        Line2D([0], [0], marker='o', color='darkred', alpha=0.5,
+                               label='Body System Pairs\n(Size of circles)',
+                               markersize=10, linestyle='None')
+                    ]
+                    ax1.legend(handles=legend_elements, loc='upper right')
+                    
+                    if gender and age_group:
+                        plt.title(f'Impact of Odds Ratio Threshold on Disease Trajectory Analysis in {gender}s {age_group}')
+                    else:
+                        plt.title('Impact of Odds Ratio Threshold on Disease Trajectory Analysis in General Population')
                     
                     st.pyplot(fig)
             
@@ -331,7 +400,7 @@ def main():
                         with st.spinner("Generating network visualization..."):
                             html_file = create_network_graph(data, selected_conditions, min_or, time_horizon, time_margin)
                             
-                            # Add legend/instructions
+                            # Display legend
                             st.markdown("""
                             ### How to Read the Graph:
                             - Nodes represent conditions, colored by body system category
@@ -342,7 +411,7 @@ def main():
                                 - n: Patient pairs
                                 - Proceeds: Percentage first condition precedes second
                             - Edge thickness represents odds ratio strength
-                            - You can drag nodes to rearrange the network
+                            - Drag nodes to rearrange the network
                             - Use mouse wheel to zoom in/out
                             - Click and drag the background to pan
                             """)

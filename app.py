@@ -179,12 +179,12 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
                 "background": "rgba(255, 255, 255, 0.8)"
             },
             "smooth": {
-                "type": "curvedCW",
+                "type": "continuous",
                 "roundness": 0.2
             }
         },
         "physics": {
-            "enabled": true,
+            "enabled": false,
             "barnesHut": {
                 "gravitationalConstant": -2000,
                 "centralGravity": 0.3,
@@ -240,7 +240,7 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
         size=0,
         font={'size': 20, 'bold': True},
         physics=False,
-        fixed=True
+        fixed=False
     )
     
     # Add legend items

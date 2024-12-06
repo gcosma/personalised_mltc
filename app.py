@@ -176,12 +176,12 @@ def analyze_condition_combinations(data, min_percentage, min_frequency):
 def condition_combinations_tab(data):
     """Condition Combinations Analysis Tab"""
     try:
-    st.header("Condition Combinations Analysis")
-    st.markdown("""
-    ### Analyze Multi-Condition Combinations
-    This analysis helps you discover interesting combinations of conditions 
-    that frequently appear together in the patient population.
-    """)
+        st.header("Condition Combinations Analysis")
+        st.markdown("""
+        ### Analyze Multi-Condition Combinations
+        This analysis helps you discover interesting combinations of conditions 
+        that frequently appear together in the patient population.
+        """)
     except Exception as e:
         st.error(f"Error in Condition Combinations tab: {e}")
 

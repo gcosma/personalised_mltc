@@ -162,7 +162,7 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
     
     # Set network options to match Colab version
         net.set_options("""
-    {
+        {
         "nodes": {
             "font": {"size": 16}
         },

@@ -161,7 +161,7 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
     net = Network(height="800px", width="100%", bgcolor='white', font_color='black', directed=True)
     
     # Set network options to match Colab version
-    net.set_options("""
+        net.set_options("""
     {
         "nodes": {
             "font": {"size": 16}
@@ -209,7 +209,7 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
     
     filtered_data = data[data['OddsRatio'] >= min_or].copy()
     
-# Find connected conditions
+    # Find connected conditions
     connected_conditions = set()
     for condition_a in patient_conditions:
         time_filtered_data = filtered_data
@@ -346,7 +346,63 @@ def main():
             tab1, tab2 = st.tabs(["Sensitivity Analysis", "Trajectory Prediction"])
             
             with tab1:
-                [Sensitivity Analysis tab code remains the same]
+                st.header("Sensitivity Analysis")
+                if st.button("Run Sensitivity Analysis"):
+                    results = perform_sensitivity_analysis(data)
+                    
+                    # Display results table
+                    st.dataframe(results.drop('Top_Patterns', axis=1))
+                    
+                    # Display top patterns
+                    st.subheader("Top 5 Strongest Trajectories")
+                    patterns_df = pd.DataFrame(results.iloc[0]['Top_Patterns'])
+                    st.dataframe(patterns_df)
+                    
+                    # Create visualization
+                    # Create visualization
+                    fig, ax1 = plt.subplots(figsize=(10, 6))
+                    ax2 = ax1.twinx()
+                    
+                    x_vals = results['OR_Threshold'].values
+                    bar_heights = results['Num_Trajectories']
+                    
+                    # Add bars for trajectories
+                    bars = ax1.bar(x_vals, bar_heights, alpha=0.3, color='navy')
+                    # Add line for coverage
+                    line = ax2.plot(x_vals, results['Coverage_Percent'], 'r-o', linewidth=2)
+                    
+                    # Add scatter for system pairs
+                    sizes = (results['System_Pairs'] / results['System_Pairs'].max()) * 500
+                    scatter = ax2.scatter(x_vals, results['Coverage_Percent'], s=sizes, alpha=0.5, color='darkred')
+                    
+                    # Add IQR information inside bars
+                    for i, row in results.iterrows():
+                        ax1.text(row['OR_Threshold'], bar_heights[i] * 0.5,
+                                f"Median: {row['Median_Duration']:.1f}y\nIQR: [{row['Q1_Duration']:.1f}-{row['Q3_Duration']:.1f}]",
+                                ha='center', va='center', fontsize=10)
+                    
+                    ax1.set_xlabel('Minimum Odds Ratio Threshold')
+                    ax1.set_ylabel('Number of Disease Trajectories')
+                    ax2.set_ylabel('Population Coverage (%)')
+                    
+                    # Add legend
+                    legend_elements = [
+                        patches.Patch(facecolor='navy', alpha=0.3,
+                                    label='Number of Disease Trajectories\n(Height of bars)'),
+                        Line2D([0], [0], color='r', marker='o',
+                               label='Population Coverage %\n(Red line)'),
+                        Line2D([0], [0], marker='o', color='darkred', alpha=0.5,
+                               label='Body System Pairs\n(Size of circles)',
+                               markersize=10, linestyle='None')
+                    ]
+                    ax1.legend(handles=legend_elements, loc='upper right')
+                    
+                    if gender and age_group:
+                        plt.title(f'Impact of Odds Ratio Threshold on Disease Trajectory Analysis in {gender}s {age_group}')
+                    else:
+                        plt.title('Impact of Odds Ratio Threshold on Disease Trajectory Analysis in General Population')
+                    
+                    st.pyplot(fig)
             
             with tab2:
                 st.header("Trajectory Prediction")

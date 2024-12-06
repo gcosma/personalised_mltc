@@ -11,6 +11,8 @@ import random
 import tempfile
 import base64
 from pathlib import Path
+from matplotlib import patches
+
 
 # Complete dictionary of conditions and their categories
 condition_categories = {

@@ -557,7 +557,6 @@ def main():
                         time_margin = st.slider("Time Margin", 0.0, 0.5, 0.1, 0.05)
 
                         if st.button("Generate Trajectory Network"):
-                            if st.button("Generate Trajectory Network"):
                             with st.spinner("Generating network visualization..."):
                                 try:
                                     # Directly generate HTML content

@@ -85,17 +85,16 @@ def load_and_process_data(uploaded_file):
     try:
         data = pd.read_csv(uploaded_file)
         total_patients = data['TotalPatientsInGroup'].iloc[0]
-
-        # Extract gender and age group from filename
+        
         filename = uploaded_file.name.lower()
-
+        
         if 'females' in filename:
             gender = 'Female'
         elif 'males' in filename:
             gender = 'Male'
         else:
             gender = 'Unknown Gender'
-
+            
         if 'below45' in filename:
             age_group = '<45'
         elif '45to64' in filename:
@@ -104,9 +103,9 @@ def load_and_process_data(uploaded_file):
             age_group = '65+'
         else:
             age_group = 'Unknown Age Group'
-
+            
         return data, total_patients, gender, age_group
-
+    
     except Exception as e:
         st.error(f"Error loading file: {str(e)}")
         return None, None, None, None
@@ -119,26 +118,23 @@ def perform_sensitivity_analysis(data, or_thresholds=[2.0, 3.0, 4.0, 5.0]):
     for threshold in or_thresholds:
         filtered_data = data[data['OddsRatio'] >= threshold].copy()
         n_trajectories = len(filtered_data)
-
-        # Calculate coverage
+        
         total_pairs = filtered_data['PairFrequency'].sum()
         estimated_unique_patients = total_pairs / 2
         coverage = min((estimated_unique_patients / total_patients) * 100, 100.0)
-
-        # Get system pairs
+        
         system_pairs = set()
         for _, row in filtered_data.iterrows():
             sys_a = condition_categories.get(row['ConditionA'], 'Other')
             sys_b = condition_categories.get(row['ConditionB'], 'Other')
             if sys_a != sys_b:
                 system_pairs.add(tuple(sorted([sys_a, sys_b])))
-
-        # Calculate duration statistics
+                
         duration_stats = filtered_data['MedianDurationYearsWithIQR'].apply(parse_iqr)
         medians = [x[0] for x in duration_stats if x[0] > 0]
         q1s = [x[1] for x in duration_stats if x[1] > 0]
         q3s = [x[2] for x in duration_stats if x[2] > 0]
-
+        
         results.append({
             'OR_Threshold': threshold,
             'Num_Trajectories': n_trajectories,
@@ -148,18 +144,21 @@ def perform_sensitivity_analysis(data, or_thresholds=[2.0, 3.0, 4.0, 5.0]):
             'Q1_Duration': round(np.median(q1s) if q1s else 0, 2),
             'Q3_Duration': round(np.median(q3s) if q3s else 0, 2)
         })
-
+    
     return pd.DataFrame(results)
 
 def create_network_graph(data, patient_conditions, min_or, time_horizon=None, time_margin=None):
     """Create a network graph visualization"""
-    # Set up a wider network
     net = Network(height="800px", width="100%", bgcolor='white', font_color='black', directed=True)
     net.set_options("""
     {
       "nodes": {
         "font": {
           "size": 16
+        },
+        "fixed": {
+          "x": false,
+          "y": false
         }
       },
       "edges": {
@@ -168,35 +167,41 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
         },
         "font": {
           "size": 12,
-          "align": "middle"
+          "align": "middle",
+          "multi": true
         },
         "smooth": {
-          "type": "continuous",
-          "forceDirection": "none"
+          "type": "curvedCW",
+          "roundness": 0.2
         }
       },
       "physics": {
-        "forceAtlas2Based": {
-          "gravitationalConstant": -50,
-          "springLength": 250,
-          "springConstant": 0.5,
+        "enabled": true,
+        "barnesHut": {
+          "gravitationalConstant": -2000,
+          "centralGravity": 0.3,
+          "springLength": 200,
+          "springConstant": 0.04,
+          "damping": 0.09,
           "avoidOverlap": 1
         },
-        "solver": "forceAtlas2Based",
         "minVelocity": 0.75,
         "stabilization": {
           "enabled": true,
           "iterations": 1000,
           "updateInterval": 25
         }
+      },
+      "interaction": {
+        "dragNodes": true,
+        "dragView": true,
+        "zoomView": true
       }
     }
     """)
     
-    # Filter data based on odds ratio
     filtered_data = data[data['OddsRatio'] >= min_or].copy()
     
-    # Find connected conditions
     connected_conditions = set()
     for condition_a in patient_conditions:
         time_filtered_data = filtered_data
@@ -208,7 +213,6 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
         conditions_b = set(time_filtered_data[time_filtered_data['ConditionA'] == condition_a]['ConditionB'])
         connected_conditions.update(conditions_b)
     
-    # Add nodes
     active_conditions = set(patient_conditions) | connected_conditions
     for condition in active_conditions:
         category = condition_categories.get(condition, "Other")
@@ -219,15 +223,16 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
                         label=f"★ {condition}",
                         title=f"{condition}\nCategory: {category}",
                         size=30,
-                        color={'background': f"{color}50", 'border': '#000000'})
+                        color={'background': f"{color}50", 'border': '#000000'},
+                        physics=True)
         else:
             net.add_node(condition,
                         label=condition,
                         title=f"{condition}\nCategory: {category}",
                         size=20,
-                        color={'background': f"{color}50", 'border': color})
+                        color={'background': f"{color}50", 'border': color},
+                        physics=True)
     
-    # Add edges with directionality
     total_patients = data['TotalPatientsInGroup'].iloc[0]
     for condition_a in patient_conditions:
         relevant_data = filtered_data[filtered_data['ConditionA'] == condition_a]
@@ -243,7 +248,6 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
                 prevalence = (row['PairFrequency'] / total_patients) * 100
                 directional_percentage = row['DirectionalPercentage']
                 
-                # Determine direction based on DirectionalPercentage
                 if directional_percentage >= 50:
                     source, target = condition_a, condition_b
                 else:
@@ -253,17 +257,17 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
                 edge_label = (f"OR: {row['OddsRatio']:.1f}\n"
                             f"Years: {row['MedianDurationYearsWithIQR']}\n"
                             f"n={row['PairFrequency']} ({prevalence:.1f}%)\n"
-                            f"Direction: {directional_percentage:.1f}%")
+                            f"Proceeds: {directional_percentage:.1f}%")
                 
                 net.add_edge(source,
                            target,
                            title=edge_label,
-                           label=f"OR: {row['OddsRatio']:.1f}",
+                           label=edge_label,
                            width=edge_width,
                            arrows={'to': {'enabled': True, 'scaleFactor': 1}},
-                           color='rgba(128,128,128,0.7)')
+                           color={'color': 'rgba(128,128,128,0.7)', 'highlight': 'black'},
+                           smooth={'type': 'curvedCW', 'roundness': 0.2})
     
-    # Save to HTML file
     with tempfile.NamedTemporaryFile(delete=False, suffix='.html', mode='w', encoding='utf-8') as f:
         net.save_graph(f.name)
         return f.name
@@ -281,6 +285,7 @@ def main():
         
         if data is not None:
             st.sidebar.header("Analysis Parameters")
+            
             st.sidebar.subheader("Data Summary")
             st.sidebar.write(f"Total patients: {total_patients:,}")
             st.sidebar.write(f"Gender: {gender}")
@@ -313,7 +318,6 @@ def main():
                 col1, col2 = st.columns([2, 1])
                 with col1:
                     min_or = st.slider("Minimum Odds Ratio", 1.0, 10.0, 2.0, 0.5)
-                    
                     unique_conditions = sorted(set(data['ConditionA'].unique()) | set(data['ConditionB'].unique()))
                     selected_conditions = st.multiselect("Select Initial Conditions", unique_conditions)
                 
@@ -326,6 +330,22 @@ def main():
                     if st.button("Generate Trajectory Network"):
                         with st.spinner("Generating network visualization..."):
                             html_file = create_network_graph(data, selected_conditions, min_or, time_horizon, time_margin)
+                            
+                            # Add legend/instructions
+                            st.markdown("""
+                            ### How to Read the Graph:
+                            - Nodes represent conditions, colored by body system category
+                            - ★ marks initial conditions
+                            - Edge labels show:
+                                - OR: Odds Ratio
+                                - Years: Median time [IQR]
+                                - n: Patient pairs
+                                - Proceeds: Percentage first condition precedes second
+                            - Edge thickness represents odds ratio strength
+                            - You can drag nodes to rearrange the network
+                            - Use mouse wheel to zoom in/out
+                            - Click and drag the background to pan
+                            """)
                             
                             # Display network
                             with open(html_file, 'r', encoding='utf-8') as f:

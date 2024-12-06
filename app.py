@@ -153,11 +153,49 @@ def perform_sensitivity_analysis(data, or_thresholds=[2.0, 3.0, 4.0, 5.0]):
 
 def create_network_graph(data, patient_conditions, min_or, time_horizon=None, time_margin=None):
     """Create a network graph visualization"""
-    net = Network(notebook=True, bgcolor='white', font_color='black', height="800px")
-
-    # Filter data
+    # Set up a wider network
+    net = Network(height="800px", width="100%", bgcolor='white', font_color='black', directed=True)
+    net.set_options("""
+    {
+      "nodes": {
+        "font": {
+          "size": 16
+        }
+      },
+      "edges": {
+        "color": {
+          "inherit": false
+        },
+        "font": {
+          "size": 12,
+          "align": "middle"
+        },
+        "smooth": {
+          "type": "continuous",
+          "forceDirection": "none"
+        }
+      },
+      "physics": {
+        "forceAtlas2Based": {
+          "gravitationalConstant": -50,
+          "springLength": 250,
+          "springConstant": 0.5,
+          "avoidOverlap": 1
+        },
+        "solver": "forceAtlas2Based",
+        "minVelocity": 0.75,
+        "stabilization": {
+          "enabled": true,
+          "iterations": 1000,
+          "updateInterval": 25
+        }
+      }
+    }
+    """)
+    
+    # Filter data based on odds ratio
     filtered_data = data[data['OddsRatio'] >= min_or].copy()
-
+    
     # Find connected conditions
     connected_conditions = set()
     for condition_a in patient_conditions:
@@ -169,15 +207,15 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
             ]
         conditions_b = set(time_filtered_data[time_filtered_data['ConditionA'] == condition_a]['ConditionB'])
         connected_conditions.update(conditions_b)
-
+    
     # Add nodes
     active_conditions = set(patient_conditions) | connected_conditions
     for condition in active_conditions:
         category = condition_categories.get(condition, "Other")
         color = SYSTEM_COLORS.get(category, "#808080")
-
+        
         if condition in patient_conditions:
-            net.add_node(condition,
+            net.add_node(condition, 
                         label=f"★ {condition}",
                         title=f"{condition}\nCategory: {category}",
                         size=30,
@@ -188,8 +226,8 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
                         title=f"{condition}\nCategory: {category}",
                         size=20,
                         color={'background': f"{color}50", 'border': color})
-
-    # Add edges
+    
+    # Add edges with directionality
     total_patients = data['TotalPatientsInGroup'].iloc[0]
     for condition_a in patient_conditions:
         relevant_data = filtered_data[filtered_data['ConditionA'] == condition_a]
@@ -197,101 +235,111 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
             relevant_data = relevant_data[
                 relevant_data['MedianDurationYearsWithIQR'].apply(lambda x: parse_iqr(x)[0]) <= time_horizon * (1 + time_margin)
             ]
-
+            
         for _, row in relevant_data.iterrows():
             condition_b = row['ConditionB']
             if condition_b not in patient_conditions:
                 edge_width = max(1, min(8, math.log2(row['OddsRatio'] + 1)))
                 prevalence = (row['PairFrequency'] / total_patients) * 100
-
+                directional_percentage = row['DirectionalPercentage']
+                
+                # Determine direction based on DirectionalPercentage
+                if directional_percentage >= 50:
+                    source, target = condition_a, condition_b
+                else:
+                    source, target = condition_b, condition_a
+                    directional_percentage = 100 - directional_percentage
+                
                 edge_label = (f"OR: {row['OddsRatio']:.1f}\n"
                             f"Years: {row['MedianDurationYearsWithIQR']}\n"
-                            f"n={row['PairFrequency']} ({prevalence:.1f}%)")
-
-                net.add_edge(condition_a,
-                            condition_b,
-                            title=edge_label,
-                            width=edge_width,
-                            color={'color': 'rgba(128,128,128,0.7)'})
-
-    return net
+                            f"n={row['PairFrequency']} ({prevalence:.1f}%)\n"
+                            f"Direction: {directional_percentage:.1f}%")
+                
+                net.add_edge(source,
+                           target,
+                           title=edge_label,
+                           label=f"OR: {row['OddsRatio']:.1f}",
+                           width=edge_width,
+                           arrows={'to': {'enabled': True, 'scaleFactor': 1}},
+                           color='rgba(128,128,128,0.7)')
+    
+    # Save to HTML file
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.html', mode='w', encoding='utf-8') as f:
+        net.save_graph(f.name)
+        return f.name
 
 def main():
     st.set_page_config(page_title="Multimorbidity Analysis Tool", layout="wide")
-
+    
     st.title("Multimorbidity Analysis Tool")
     st.write("Upload your data file and analyze disease trajectories")
-
-    # File upload
+    
     uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
-
+    
     if uploaded_file is not None:
         data, total_patients, gender, age_group = load_and_process_data(uploaded_file)
-
+        
         if data is not None:
             st.sidebar.header("Analysis Parameters")
-
-            # Data summary
             st.sidebar.subheader("Data Summary")
             st.sidebar.write(f"Total patients: {total_patients:,}")
             st.sidebar.write(f"Gender: {gender}")
             st.sidebar.write(f"Age Group: {age_group}")
-
-            # Create tabs for different analyses
+            
             tab1, tab2 = st.tabs(["Sensitivity Analysis", "Trajectory Prediction"])
-
+            
             with tab1:
                 st.header("Sensitivity Analysis")
                 if st.button("Run Sensitivity Analysis"):
                     results = perform_sensitivity_analysis(data)
-
-                    # Display results
                     st.dataframe(results)
-
-                    # Create visualization
+                    
                     fig, ax1 = plt.subplots(figsize=(10, 6))
                     ax2 = ax1.twinx()
-
+                    
                     x_vals = results['OR_Threshold'].values
                     ax1.bar(x_vals, results['Num_Trajectories'], alpha=0.3, color='navy')
                     ax2.plot(x_vals, results['Coverage_Percent'], 'r-o', linewidth=2)
-
+                    
                     ax1.set_xlabel('Minimum Odds Ratio Threshold')
                     ax1.set_ylabel('Number of Disease Trajectories')
                     ax2.set_ylabel('Population Coverage (%)')
-
+                    
                     st.pyplot(fig)
-
+            
             with tab2:
                 st.header("Trajectory Prediction")
-
-                # Parameters
-                min_or = st.slider("Minimum Odds Ratio", 1.0, 10.0, 2.0, 0.5)
-
-                # Get unique conditions
-                unique_conditions = sorted(set(data['ConditionA'].unique()) | set(data['ConditionB'].unique()))
-                selected_conditions = st.multiselect("Select Initial Conditions", unique_conditions)
-
+                
+                col1, col2 = st.columns([2, 1])
+                with col1:
+                    min_or = st.slider("Minimum Odds Ratio", 1.0, 10.0, 2.0, 0.5)
+                    
+                    unique_conditions = sorted(set(data['ConditionA'].unique()) | set(data['ConditionB'].unique()))
+                    selected_conditions = st.multiselect("Select Initial Conditions", unique_conditions)
+                
                 if selected_conditions:
-                    max_years = math.ceil(data['MedianDurationYearsWithIQR'].apply(lambda x: parse_iqr(x)[0]).max())
-                    time_horizon = st.slider("Time Horizon (years)", 1, max_years, min(5, max_years))
-                    time_margin = st.slider("Time Margin", 0.0, 0.5, 0.1, 0.05)
-
+                    with col2:
+                        max_years = math.ceil(data['MedianDurationYearsWithIQR'].apply(lambda x: parse_iqr(x)[0]).max())
+                        time_horizon = st.slider("Time Horizon (years)", 1, max_years, min(5, max_years))
+                        time_margin = st.slider("Time Margin", 0.0, 0.5, 0.1, 0.05)
+                    
                     if st.button("Generate Trajectory Network"):
-                        net = create_network_graph(data, selected_conditions, min_or, time_horizon, time_margin)
-
-                        # Save and display the network
-                        with tempfile.NamedTemporaryFile(delete=False, suffix='.html') as tmp:
-                            net.save_graph(tmp.name)
-                            with open(tmp.name, 'r', encoding='utf-8') as f:
+                        with st.spinner("Generating network visualization..."):
+                            html_file = create_network_graph(data, selected_conditions, min_or, time_horizon, time_margin)
+                            
+                            # Display network
+                            with open(html_file, 'r', encoding='utf-8') as f:
                                 html_content = f.read()
-
-                        st.components.v1.html(html_content, height=800)
-
-                        # Add download button
-                        b64 = base64.b64encode(html_content.encode()).decode()
-                        href = f'<a href="data:text/html;base64,{b64}" download="trajectory_network.html">Download Network Graph</a>'
-                        st.markdown(href, unsafe_allow_html=True)
+                            
+                            st.components.v1.html(html_content, height=800)
+                            
+                            # Add download button
+                            st.download_button(
+                                label="Download Network Graph",
+                                data=html_content,
+                                file_name="trajectory_network.html",
+                                mime="text/html"
+                            )
 
 if __name__ == "__main__":
     main()

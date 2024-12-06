@@ -557,30 +557,31 @@ def main():
                         time_margin = st.slider("Time Margin", 0.0, 0.5, 0.1, 0.05)
 
                         if st.button("Generate Trajectory Network"):
-    with st.spinner("Generating network visualization..."):
-        try:
-            # Directly generate HTML content
-            html_content = create_network_graph(
-                data, 
-                selected_conditions, 
-                min_or, 
-                time_horizon, 
-                time_margin
-            )
-            
-            # Display network using Streamlit's HTML component
-            st.components.v1.html(html_content, height=800)
-            
-            # Optional: Add download button
-            st.download_button(
-                label="Download Network Graph",
-                data=html_content,
-                file_name="trajectory_network.html",
-                mime="text/html"
-            )
-        except Exception as e:
-            st.error(f"Failed to generate network graph: {e}")
-            
+                            if st.button("Generate Trajectory Network"):
+                            with st.spinner("Generating network visualization..."):
+                                try:
+                                    # Directly generate HTML content
+                                    html_content = create_network_graph(
+                                        data, 
+                                        selected_conditions, 
+                                        min_or, 
+                                        time_horizon, 
+                                        time_margin
+                                    )
+                                    
+                                    # Display network using Streamlit's HTML component
+                                    st.components.v1.html(html_content, height=800)
+                                    
+                                    # Optional: Add download button
+                                    st.download_button(
+                                        label="Download Network Graph",
+                                        data=html_content,
+                                        file_name="trajectory_network.html",
+                                        mime="text/html"
+                                    )
+                                except Exception as e:
+                                    st.error(f"Failed to generate network graph: {e}")
+                            
             with tab3:
                 # New Condition Combinations tab
                 condition_combinations_tab(data)          

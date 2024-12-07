@@ -114,16 +114,61 @@ def load_and_process_data(uploaded_file):
         st.error(f"Error loading file: {str(e)}")
         return None, None, None, None
 
-
-def analyze_condition_combinations(data, min_percentage, min_frequency):
-    """Analyze combinations of conditions based on minimum percentage and frequency"""
+def perform_sensitivity_analysis(data):
+    """Perform sensitivity analysis with corrected calculations"""
+    or_thresholds = [2.0, 3.0, 4.0, 5.0]
+    results = []
     total_patients = data['TotalPatientsInGroup'].iloc[0]
 
-    # Filter data based on minimum percentage and frequency
+    # Get top 5 patterns from full dataset
+    top_patterns = data.nlargest(5, 'OddsRatio')[
+        ['ConditionA', 'ConditionB', 'OddsRatio', 'PairFrequency',
+         'MedianDurationYearsWithIQR', 'DirectionalPercentage', 'Precedence']
+    ].to_dict('records')
+
+    for threshold in or_thresholds:
+        filtered_data = data[data['OddsRatio'] >= threshold].copy()
+        n_trajectories = len(filtered_data)
+
+        # Corrected coverage calculation
+        total_pairs = filtered_data['PairFrequency'].sum()
+        estimated_unique_patients = total_pairs / 2  # Average of 2 conditions per patient
+        coverage = min((estimated_unique_patients / total_patients) * 100, 100.0)
+
+        # System pairs calculation
+        system_pairs = set()
+        for _, row in filtered_data.iterrows():
+            sys_a = condition_categories.get(row['ConditionA'], 'Other')
+            sys_b = condition_categories.get(row['ConditionB'], 'Other')
+            if sys_a != sys_b:
+                system_pairs.add(tuple(sorted([sys_a, sys_b])))
+
+        # Duration statistics
+        duration_stats = filtered_data['MedianDurationYearsWithIQR'].apply(parse_iqr)
+        medians = [x[0] for x in duration_stats if x[0] > 0]
+        q1s = [x[1] for x in duration_stats if x[1] > 0]
+        q3s = [x[2] for x in duration_stats if x[2] > 0]
+
+        results.append({
+            'OR_Threshold': threshold,
+            'Num_Trajectories': n_trajectories,
+            'Coverage_Percent': round(coverage, 2),
+            'System_Pairs': len(system_pairs),
+            'Median_Duration': round(np.median(medians) if medians else 0, 2),
+            'Q1_Duration': round(np.median(q1s) if q1s else 0, 2),
+            'Q3_Duration': round(np.median(q3s) if q3s else 0, 2),
+            'Top_Patterns': top_patterns
+        })
+
+    return pd.DataFrame(results)
+
+def analyze_condition_combinations(data, min_percentage, min_frequency):
+    """Analyze combinations of conditions"""
+    total_patients = data['TotalPatientsInGroup'].iloc[0]
+
     filtered_data = data[(data['Percentage'] >= min_percentage) &
                          (data['PairFrequency'] >= min_frequency)].copy()
 
-    # Clean condition names
     filtered_data.loc[:, 'ConditionA'] = filtered_data['ConditionA'].str.replace(r'\s*\([^)]*\)', '', regex=True)
     filtered_data.loc[:, 'ConditionB'] = filtered_data['ConditionB'].str.replace(r'\s*\([^)]*\)', '', regex=True)
     filtered_data.loc[:, 'ConditionA'] = filtered_data['ConditionA'].str.replace('_', ' ')
@@ -131,7 +176,6 @@ def analyze_condition_combinations(data, min_percentage, min_frequency):
 
     unique_conditions = pd.unique(filtered_data[['ConditionA', 'ConditionB']].values.ravel('K'))
 
-    # Create frequency maps
     pair_frequency_map = {}
     condition_frequency_map = {}
 
@@ -146,7 +190,6 @@ def analyze_condition_combinations(data, min_percentage, min_frequency):
 
     result_data = []
 
-    # Analyze combinations
     for k in range(3, min(8, len(unique_conditions) + 1)):
         for comb in combinations(unique_conditions, k):
             pair_frequencies = [pair_frequency_map.get(f"{a}_{b}", 0) for a, b in combinations(comb, 2)]
@@ -185,14 +228,11 @@ def condition_combinations_tab(data):
     except Exception as e:
         st.error(f"Error in Condition Combinations tab: {e}")
 
-    # Sidebar for analysis parameters
     st.sidebar.subheader("Combination Analysis Parameters")
     
-    # Get ranges for sliders
     min_freq_range = (data['PairFrequency'].min(), data['PairFrequency'].max())
     min_percentage_range = (data['Percentage'].min(), data['Percentage'].max())
 
-    # Sliders for parameters
     min_frequency = st.sidebar.slider(
         "Minimum Pair Frequency", 
         min_value=int(min_freq_range[0]), 
@@ -208,19 +248,14 @@ def condition_combinations_tab(data):
         step=0.1
     )
 
-    # Run analysis button
     if st.button("Analyze Condition Combinations"):
         with st.spinner("Analyzing condition combinations..."):
-            # Perform analysis
             results_df = analyze_condition_combinations(data, min_percentage, min_frequency)
             
-            # Display results
             st.subheader(f"Analysis Results (Total Combinations: {len(results_df)})")
             st.dataframe(results_df)
 
-            # Visualization
             if not results_df.empty:
-                # Bar plot of top combinations by prevalence
                 fig, ax = plt.subplots(figsize=(12, 6))
                 top_10 = results_df.nlargest(10, 'Prevalence of the combination (%)')
                 ax.bar(top_10['Combination'], top_10['Prevalence of the combination (%)'])
@@ -231,7 +266,6 @@ def condition_combinations_tab(data):
                 plt.tight_layout()
                 st.pyplot(fig)
 
-                # Download button for full results
                 csv = results_df.to_csv(index=False)
                 st.download_button(
                     label="Download Full Results",
@@ -242,225 +276,169 @@ def condition_combinations_tab(data):
             else:
                 st.warning("No combinations found matching the specified criteria.")
 
-
-def perform_sensitivity_analysis(data, or_thresholds=[2.0, 3.0, 4.0, 5.0]):
-    """Perform sensitivity analysis on the data"""
-    results = []
-    total_patients = data['TotalPatientsInGroup'].iloc[0]
-
-    for threshold in or_thresholds:
-        filtered_data = data[data['OddsRatio'] >= threshold].copy()
-        n_trajectories = len(filtered_data)
-
-        total_pairs = filtered_data['PairFrequency'].sum()
-        estimated_unique_patients = total_pairs / 2
-        coverage = min((estimated_unique_patients / total_patients) * 100, 100.0)
-
-        system_pairs = set()
-        for _, row in filtered_data.iterrows():
-            sys_a = condition_categories.get(row['ConditionA'], 'Other')
-            sys_b = condition_categories.get(row['ConditionB'], 'Other')
-            if sys_a != sys_b:
-                system_pairs.add(tuple(sorted([sys_a, sys_b])))
-
-        # Get top 5 patterns
-        top_patterns = filtered_data.nlargest(5, 'OddsRatio')[
-            ['ConditionA', 'ConditionB', 'OddsRatio', 'PairFrequency',
-             'MedianDurationYearsWithIQR', 'DirectionalPercentage', 'Precedence']
-        ].to_dict('records')
-
-        duration_stats = filtered_data['MedianDurationYearsWithIQR'].apply(parse_iqr)
-        medians = [x[0] for x in duration_stats if x[0] > 0]
-        q1s = [x[1] for x in duration_stats if x[1] > 0]
-        q3s = [x[2] for x in duration_stats if x[2] > 0]
-
-        results.append({
-            'OR_Threshold': threshold,
-            'Num_Trajectories': n_trajectories,
-            'Coverage_Percent': round(coverage, 2),
-            'System_Pairs': len(system_pairs),
-            'Median_Duration': round(np.median(medians) if medians else 0, 2),
-            'Q1_Duration': round(np.median(q1s) if q1s else 0, 2),
-            'Q3_Duration': round(np.median(q3s) if q3s else 0, 2),
-            'Top_Patterns': top_patterns
-        })
-
-    return pd.DataFrame(results)
-
 def create_network_graph(data, patient_conditions, min_or, time_horizon=None, time_margin=None):
-    try:
-        net = Network(height="800px", width="100%", bgcolor='white', font_color='black', directed=True)
-        
-        # More advanced physics and layout configuration
-        net.set_options("""
-        {
-            "nodes": {
-                "font": {"size": 16},
-                "scaling": {
-                    "min": 10,
-                    "max": 30
-                }
-            },
-            "edges": {
-                "color": {
-                    "inherit": false
-                },
-                "font": {
-                    "size": 12,
-                    "align": "middle",
-                    "multi": true,
-                    "background": "rgba(255, 255, 255, 0.8)"
-                },
-                "smooth": {
-                    "type": "continuous",
-                    "roundness": 0.2
-                }
-            },
-            "physics": {
-                "enabled": true,
-                "barnesHut": {
-                    "gravitationalConstant": -4000,
-                    "centralGravity": 0.1,
-                    "springLength": 250,
-                    "springConstant": 0.03,
-                    "damping": 0.1,
-                    "avoidOverlap": 1
-                },
-                "minVelocity": 0.75,
-                "stabilization": {
-                    "enabled": true,
-                    "iterations": 1000,
-                    "updateInterval": 25
-                },
-                "solver": "barnesHut"
-            },
-            "interaction": {
-                "hover": true,
-                "dragNodes": true,
-                "dragView": true,
-                "zoomView": true
-            }
-        }
-        """)
-        
-        filtered_data = data[data['OddsRatio'] >= min_or].copy()
-        
-        # Find connected conditions
-        connected_conditions = set()
-        for condition_a in patient_conditions:
-            time_filtered_data = filtered_data
-            if time_horizon and time_margin:
-                time_filtered_data = filtered_data[
-                    (filtered_data['ConditionA'] == condition_a) &
-                    (filtered_data['MedianDurationYearsWithIQR'].apply(lambda x: parse_iqr(x)[0]) <= time_horizon * (1 + time_margin))
-                ]
-            conditions_b = set(time_filtered_data[time_filtered_data['ConditionA'] == condition_a]['ConditionB'])
-            connected_conditions.update(conditions_b)
-        
-        # Define active conditions and categories
-        active_conditions = set(patient_conditions) | connected_conditions
-        active_categories = {condition_categories[cond] for cond in active_conditions if cond in condition_categories}
-
-        # Prepare system-based positioning
-        system_conditions = {}
-        for condition in active_conditions:
-            category = condition_categories.get(condition, "Other")
-            if category not in system_conditions:
-                system_conditions[category] = []
-            system_conditions[category].append(condition)
-
-        # Positioning calculation to spread systems
-        angle_step = (2 * math.pi) / len(active_categories)
-        radius = 500  # Increased radius for more spread
-        system_centers = {}
-
-        for i, category in enumerate(sorted(active_categories)):
-            angle = i * angle_step
-            x = radius * math.cos(angle)
-            y = radius * math.sin(angle)
-            system_centers[category] = (x, y)
-
-        # Add condition nodes with system-based positioning
-        for category, conditions in system_conditions.items():
-            center_x, center_y = system_centers[category]
-            sub_radius = radius / (len(conditions) + 1)
-            
-            for j, condition in enumerate(conditions):
-                sub_angle = (j / len(conditions)) * (2 * math.pi)
-                node_x = center_x + sub_radius * math.cos(sub_angle)
-                node_y = center_y + sub_radius * math.sin(sub_angle)
-                
-                base_color = SYSTEM_COLORS[category]
-                
-                if condition in patient_conditions:
-                    net.add_node(
-                        condition,
-                        label=f"★ {condition}",
-                        title=f"{condition}\nCategory: {category}",
-                        size=30,
-                        x=node_x,
-                        y=node_y,
-                        color={'background': f"{base_color}50", 'border': '#000000'},
-                        physics=True,
-                        fixed=False
-                    )
-                else:
-                    net.add_node(
-                        condition,
-                        label=condition,
-                        title=f"{condition}\nCategory: {category}",
-                        size=20,
-                        x=node_x,
-                        y=node_y,
-                        color={'background': f"{base_color}50", 'border': base_color},
-                        physics=True,
-                        fixed=False
-                    )
-
-        # Add edges with all information visible
-        total_patients = data['TotalPatientsInGroup'].iloc[0]
-        for condition_a in patient_conditions:
-            relevant_data = filtered_data[filtered_data['ConditionA'] == condition_a]
-            if time_horizon and time_margin:
-                relevant_data = relevant_data[
-                    relevant_data['MedianDurationYearsWithIQR'].apply(lambda x: parse_iqr(x)[0]) <= time_horizon * (1 + time_margin)
-                ]
-
-            for _, row in relevant_data.iterrows():
-                condition_b = row['ConditionB']
-                if condition_b not in patient_conditions:
-                    edge_width = max(1, min(8, math.log2(row['OddsRatio'] + 1)))
-                    prevalence = (row['PairFrequency'] / total_patients) * 100
-                    directional_percentage = row['DirectionalPercentage']
-
-                    if directional_percentage >= 50:
-                        source, target = condition_a, condition_b
-                    else:
-                        source, target = condition_b, condition_a
-                        directional_percentage = 100 - directional_percentage
-
-                    edge_label = (f"OR: {row['OddsRatio']:.1f}\n"
-                                f"Years: {row['MedianDurationYearsWithIQR']}\n"
-                                f"n={row['PairFrequency']} ({prevalence:.1f}%)\n"
-                                f"Proceeds: {directional_percentage:.1f}%")
-
-                    net.add_edge(
-                        source,
-                        target,
-                        label=edge_label,
-                        title=edge_label,
-                        width=edge_width,
-                        arrows={'to': {'enabled': True, 'scaleFactor': 1}},
-                        color={'color': 'rgba(128,128,128,0.7)', 'highlight': 'black'},
-                        smooth={'type': 'curvedCW', 'roundness': 0.2}
-                    )
-
-        # Return the HTML content directly
-        return net.generate_html()
+    """Create network graph for trajectory visualization"""
+    net = Network(height="800px", width="100%", bgcolor='white', font_color='black', directed=True)
     
-    except Exception as e:
-        st.error(f"Error in network graph generation: {e}")
-        return f"<html><body><h1>Error generating network graph</h1><p>{str(e)}</p></body></html>"
+    net.set_options("""
+    {
+        "nodes": {
+            "font": {"size": 16},
+            "scaling": {
+                "min": 10,
+                "max": 30
+            }
+        },
+        "edges": {
+            "color": {
+                "inherit": false
+            },
+            "font": {
+                "size": 12,
+                "align": "middle",
+                "multi": true,
+                "background": "rgba(255, 255, 255, 0.8)"
+            },
+            "smooth": {
+                "type": "continuous",
+                "roundness": 0.2
+            }
+        },
+        "physics": {
+            "enabled": true,
+            "barnesHut": {
+                "gravitationalConstant": -4000,
+                "centralGravity": 0.1,
+                "springLength": 250,
+                "springConstant": 0.03,
+                "damping": 0.1,
+                "avoidOverlap": 1
+            },
+            "minVelocity": 0.75,
+            "stabilization": {
+                "enabled": true,
+                "iterations": 1000,
+                "updateInterval": 25
+            },
+            "solver": "barnesHut"
+        },
+        "interaction": {
+            "hover": true,
+            "dragNodes": true,
+            "dragView": true,
+            "zoomView": true
+        }
+    }
+    """)
+    
+    filtered_data = data[data['OddsRatio'] >= min_or].copy()
+    
+    connected_conditions = set()
+    for condition_a in patient_conditions:
+        time_filtered_data = filtered_data
+        if time_horizon and time_margin:
+            time_filtered_data = filtered_data[
+                (filtered_data['ConditionA'] == condition_a) &
+                # Continuing from the create_network_graph function...
+                (filtered_data['MedianDurationYearsWithIQR'].apply(lambda x: parse_iqr(x)[0]) <= time_horizon * (1 + time_margin))
+            ]
+        conditions_b = set(time_filtered_data[time_filtered_data['ConditionA'] == condition_a]['ConditionB'])
+        connected_conditions.update(conditions_b)
+    
+    active_conditions = set(patient_conditions) | connected_conditions
+    active_categories = {condition_categories[cond] for cond in active_conditions if cond in condition_categories}
+
+    system_conditions = {}
+    for condition in active_conditions:
+        category = condition_categories.get(condition, "Other")
+        if category not in system_conditions:
+            system_conditions[category] = []
+        system_conditions[category].append(condition)
+
+    angle_step = (2 * math.pi) / len(active_categories)
+    radius = 500
+    system_centers = {}
+
+    for i, category in enumerate(sorted(active_categories)):
+        angle = i * angle_step
+        x = radius * math.cos(angle)
+        y = radius * math.sin(angle)
+        system_centers[category] = (x, y)
+
+    for category, conditions in system_conditions.items():
+        center_x, center_y = system_centers[category]
+        sub_radius = radius / (len(conditions) + 1)
+        
+        for j, condition in enumerate(conditions):
+            sub_angle = (j / len(conditions)) * (2 * math.pi)
+            node_x = center_x + sub_radius * math.cos(sub_angle)
+            node_y = center_y + sub_radius * math.sin(sub_angle)
+            
+            base_color = SYSTEM_COLORS[category]
+            
+            if condition in patient_conditions:
+                net.add_node(
+                    condition,
+                    label=f"★ {condition}",
+                    title=f"{condition}\nCategory: {category}",
+                    size=30,
+                    x=node_x,
+                    y=node_y,
+                    color={'background': f"{base_color}50", 'border': '#000000'},
+                    physics=True,
+                    fixed=False
+                )
+            else:
+                net.add_node(
+                    condition,
+                    label=condition,
+                    title=f"{condition}\nCategory: {category}",
+                    size=20,
+                    x=node_x,
+                    y=node_y,
+                    color={'background': f"{base_color}50", 'border': base_color},
+                    physics=True,
+                    fixed=False
+                )
+
+    total_patients = data['TotalPatientsInGroup'].iloc[0]
+    for condition_a in patient_conditions:
+        relevant_data = filtered_data[filtered_data['ConditionA'] == condition_a]
+        if time_horizon and time_margin:
+            relevant_data = relevant_data[
+                relevant_data['MedianDurationYearsWithIQR'].apply(lambda x: parse_iqr(x)[0]) <= time_horizon * (1 + time_margin)
+            ]
+
+        for _, row in relevant_data.iterrows():
+            condition_b = row['ConditionB']
+            if condition_b not in patient_conditions:
+                edge_width = max(1, min(8, math.log2(row['OddsRatio'] + 1)))
+                prevalence = (row['PairFrequency'] / total_patients) * 100
+                directional_percentage = row['DirectionalPercentage']
+
+                if directional_percentage >= 50:
+                    source, target = condition_a, condition_b
+                else:
+                    source, target = condition_b, condition_a
+                    directional_percentage = 100 - directional_percentage
+
+                edge_label = (f"OR: {row['OddsRatio']:.1f}\n"
+                            f"Years: {row['MedianDurationYearsWithIQR']}\n"
+                            f"n={row['PairFrequency']} ({prevalence:.1f}%)\n"
+                            f"Proceeds: {directional_percentage:.1f}%")
+
+                net.add_edge(
+                    source,
+                    target,
+                    label=edge_label,
+                    title=edge_label,
+                    width=edge_width,
+                    arrows={'to': {'enabled': True, 'scaleFactor': 1}},
+                    color={'color': 'rgba(128,128,128,0.7)', 'highlight': 'black'},
+                    smooth={'type': 'curvedCW', 'roundness': 0.2}
+                )
+
+    return net.generate_html()
 
 def main():
     st.set_page_config(page_title="Multimorbidity Analysis Tool", layout="wide")
@@ -479,77 +457,76 @@ def main():
             st.sidebar.write(f"Gender: {gender}")
             st.sidebar.write(f"Age Group: {age_group}")
 
-            # Create tabs
             tab1, tab2, tab3 = st.tabs(["Sensitivity Analysis", "Trajectory Prediction", "Condition Combinations"])
 
             with tab1:
                 st.header("Sensitivity Analysis")
                 if st.button("Run Sensitivity Analysis"):
-                    results = perform_sensitivity_analysis(data)
+                    with st.spinner("Performing sensitivity analysis..."):
+                        results = perform_sensitivity_analysis(data)
 
-                    # Display results table
-                    st.dataframe(results.drop('Top_Patterns', axis=1))
+                        st.subheader("Analysis Results")
+                        display_df = results.drop('Top_Patterns', axis=1)
+                        st.dataframe(display_df)
 
-                    # Display top patterns
-                    st.subheader("Top 5 Strongest Trajectories")
-                    patterns_df = pd.DataFrame(results.iloc[0]['Top_Patterns'])
-                    st.dataframe(patterns_df)
+                        st.subheader("Top 5 Strongest Trajectories")
+                        patterns_df = pd.DataFrame(results.iloc[0]['Top_Patterns'])
+                        st.dataframe(patterns_df)
 
-                    # Create visualization
-                    fig, ax1 = plt.subplots(figsize=(10, 6))
-                    ax2 = ax1.twinx()
+                        fig, ax1 = plt.subplots(figsize=(12, 6))
+                        ax2 = ax1.twinx()
 
-                    x_vals = results['OR_Threshold'].values
-                    bar_heights = results['Num_Trajectories']
+                        x_vals = results['OR_Threshold'].values
+                        bar_heights = results['Num_Trajectories']
 
-                    # Add bars for trajectories
-                    bars = ax1.bar(x_vals, bar_heights, alpha=0.3, color='navy')
-                    # Add line for coverage
-                    line = ax2.plot(x_vals, results['Coverage_Percent'], 'r-o', linewidth=2)
+                        bars = ax1.bar(x_vals, bar_heights, alpha=0.3, color='navy')
+                        line = ax2.plot(x_vals, results['Coverage_Percent'], 'r-o', linewidth=2)
 
-                    # Add scatter for system pairs
-                    sizes = (results['System_Pairs'] / results['System_Pairs'].max()) * 500
-                    scatter = ax2.scatter(x_vals, results['Coverage_Percent'], s=sizes, alpha=0.5, color='darkred')
+                        sizes = (results['System_Pairs'] / results['System_Pairs'].max()) * 500
+                        scatter = ax2.scatter(x_vals, results['Coverage_Percent'], s=sizes, alpha=0.5, color='darkred')
 
-                    # Add IQR information inside bars
-                    for i, row in results.iterrows():
-                        ax1.text(row['OR_Threshold'], bar_heights[i] * 0.5,
-                                f"Median: {row['Median_Duration']:.1f}y\nIQR: [{row['Q1_Duration']:.1f}-{row['Q3_Duration']:.1f}]",
-                                ha='center', va='center', fontsize=10)
+                        for i, row in results.iterrows():
+                            ax1.text(row['OR_Threshold'], bar_heights[i] * 0.5,
+                                    f"Median: {row['Median_Duration']:.1f}y\nIQR: [{row['Q1_Duration']:.1f}-{row['Q3_Duration']:.1f}]",
+                                    ha='center', va='center', fontsize=10)
 
-                    ax1.set_xlabel('Minimum Odds Ratio Threshold')
-                    ax1.set_ylabel('Number of Disease Trajectories')
-                    ax2.set_ylabel('Population Coverage (%)')
+                        ax1.set_xlabel('Minimum Odds Ratio Threshold')
+                        ax1.set_ylabel('Number of Disease Trajectories')
+                        ax2.set_ylabel('Population Coverage (%)')
 
-                    # Add legend
-                    legend_elements = [
-                        patches.Patch(facecolor='navy', alpha=0.3,
-                                    label='Number of Disease Trajectories\n(Height of bars)'),
-                        Line2D([0], [0], color='r', marker='o',
-                               label='Population Coverage %\n(Red line)'),
-                        Line2D([0], [0], marker='o', color='darkred', alpha=0.5,
-                               label='Body System Pairs\n(Size of circles)',
-                               markersize=10, linestyle='None')
-                    ]
-                    ax1.legend(handles=legend_elements, loc='upper right')
+                        legend_elements = [
+                            patches.Patch(facecolor='navy', alpha=0.3,
+                                        label='Number of Disease Trajectories\n(Height of bars)'),
+                            Line2D([0], [0], color='r', marker='o',
+                                   label='Population Coverage %\n(Red line)'),
+                            Line2D([0], [0], marker='o', color='darkred', alpha=0.5,
+                                   label='Body System Pairs\n(Size of circles)',
+                                   markersize=10, linestyle='None')
+                        ]
+                        ax1.legend(handles=legend_elements, loc='upper right')
 
-                    if gender and age_group:
-                        plt.title(f'Impact of Odds Ratio Threshold on Disease Trajectory Analysis in {gender}s {age_group}')
-                    else:
-                        plt.title('Impact of Odds Ratio Threshold on Disease Trajectory Analysis in General Population')
+                        if gender and age_group:
+                            plt.title(f'Impact of Odds Ratio Threshold on Disease Trajectory Analysis in {gender}s {age_group}')
+                        else:
+                            plt.title('Impact of Odds Ratio Threshold on Disease Trajectory Analysis in General Population')
 
-                    st.pyplot(fig)
-                
+                        plt.tight_layout()
+                        st.pyplot(fig)
+
+                        csv = display_df.to_csv(index=False)
+                        st.download_button(
+                            label="Download Analysis Results",
+                            data=csv,
+                            file_name="sensitivity_analysis_results.csv",
+                            mime="text/csv"
+                        )
+            
             with tab2:
                 st.header("Trajectory Prediction")
 
-                # Create a container for the main content
                 main_container = st.container()
-
-                # Use a 4:1 ratio for columns
                 col1, col2 = main_container.columns([4, 1])
 
-                # Move all controls to the right column
                 with col2:
                     min_or = st.slider("Minimum Odds Ratio", 1.0, 10.0, 2.0, 0.5)
                     unique_conditions = sorted(set(data['ConditionA'].unique()) | set(data['ConditionB'].unique()))
@@ -563,7 +540,6 @@ def main():
                         if st.button("Generate Trajectory Network"):
                             with st.spinner("Generating network visualization..."):
                                 try:
-                                    # Generate HTML content
                                     html_content = create_network_graph(
                                         data, 
                                         selected_conditions, 
@@ -572,12 +548,9 @@ def main():
                                         time_margin
                                     )
                                     
-                                    # Display network in the left column
                                     with col1:
-                                        # Use the full width of the column for the visualization
                                         st.components.v1.html(html_content, height=800)
                                     
-                                    # Keep download button in the right column
                                     st.download_button(
                                         label="Download Network Graph",
                                         data=html_content,
@@ -587,9 +560,8 @@ def main():
                                 except Exception as e:
                                     with col1:
                                         st.error(f"Failed to generate network graph: {e}")
-                            
+            
             with tab3:
-                # Condition Combinations tab
                 condition_combinations_tab(data)
 
 if __name__ == "__main__":

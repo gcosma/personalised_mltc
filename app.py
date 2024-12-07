@@ -496,7 +496,6 @@ def main():
                     st.dataframe(patterns_df)
 
                     # Create visualization
-                    # Create visualization
                     fig, ax1 = plt.subplots(figsize=(10, 6))
                     ax2 = ax1.twinx()
 
@@ -544,14 +543,19 @@ def main():
             with tab2:
                 st.header("Trajectory Prediction")
 
-                col1, col2 = st.columns([2, 1])
-                with col1:
+                # Create a container for the main content
+                main_container = st.container()
+
+                # Use a 4:1 ratio for columns
+                col1, col2 = main_container.columns([4, 1])
+
+                # Move all controls to the right column
+                with col2:
                     min_or = st.slider("Minimum Odds Ratio", 1.0, 10.0, 2.0, 0.5)
                     unique_conditions = sorted(set(data['ConditionA'].unique()) | set(data['ConditionB'].unique()))
                     selected_conditions = st.multiselect("Select Initial Conditions", unique_conditions)
 
-                if selected_conditions:
-                    with col2:
+                    if selected_conditions:
                         max_years = math.ceil(data['MedianDurationYearsWithIQR'].apply(lambda x: parse_iqr(x)[0]).max())
                         time_horizon = st.slider("Time Horizon (years)", 1, max_years, min(5, max_years))
                         time_margin = st.slider("Time Margin", 0.0, 0.5, 0.1, 0.05)
@@ -559,7 +563,7 @@ def main():
                         if st.button("Generate Trajectory Network"):
                             with st.spinner("Generating network visualization..."):
                                 try:
-                                    # Directly generate HTML content
+                                    # Generate HTML content
                                     html_content = create_network_graph(
                                         data, 
                                         selected_conditions, 
@@ -568,10 +572,12 @@ def main():
                                         time_margin
                                     )
                                     
-                                    # Display network using Streamlit's HTML component
-                                    st.components.v1.html(html_content, height=800)
+                                    # Display network in the left column
+                                    with col1:
+                                        # Use the full width of the column for the visualization
+                                        st.components.v1.html(html_content, height=800)
                                     
-                                    # Optional: Add download button
+                                    # Keep download button in the right column
                                     st.download_button(
                                         label="Download Network Graph",
                                         data=html_content,
@@ -579,11 +585,12 @@ def main():
                                         mime="text/html"
                                     )
                                 except Exception as e:
-                                    st.error(f"Failed to generate network graph: {e}")
+                                    with col1:
+                                        st.error(f"Failed to generate network graph: {e}")
                             
             with tab3:
-                # New Condition Combinations tab
-                condition_combinations_tab(data)          
+                # Condition Combinations tab
+                condition_combinations_tab(data)
 
 if __name__ == "__main__":
     main()

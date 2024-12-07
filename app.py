@@ -165,7 +165,7 @@ def perform_sensitivity_analysis(data):
 @st.cache_data
 def create_network_graph(data, patient_conditions, min_or, time_horizon=None, time_margin=None):
     """Create network graph for trajectory visualization with legend"""
-    # Create HTML for the legend
+    # Legend HTML remains the same
     legend_html = """
     <div style="position: absolute; top: 10px; right: 10px; background: white; 
                 padding: 10px; border: 1px solid #ddd; border-radius: 5px; z-index: 1000;">
@@ -201,7 +201,7 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
 
     net = Network(height="800px", width="100%", bgcolor='white', font_color='black', directed=True)
     
-    # Network options
+    # Network options remain the same
     net.set_options("""
     {
         "nodes": {
@@ -258,7 +258,7 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
     active_conditions = set(patient_conditions) | connected_conditions
     active_categories = {condition_categories[cond] for cond in active_conditions if cond in condition_categories}
 
-    # Organize conditions by system
+    # Node positioning logic remains the same
     system_conditions = {}
     for condition in active_conditions:
         category = condition_categories.get(condition, "Other")
@@ -266,7 +266,6 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
             system_conditions[category] = []
         system_conditions[category].append(condition)
 
-    # Calculate layout positions
     angle_step = (2 * math.pi) / len(active_categories)
     radius = 500
     system_centers = {}
@@ -277,7 +276,7 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
         y = radius * math.sin(angle)
         system_centers[category] = (x, y)
 
-    # Add nodes
+    # Add nodes (unchanged)
     for category, conditions in system_conditions.items():
         center_x, center_y = system_centers[category]
         sub_radius = radius / (len(conditions) + 1)
@@ -314,7 +313,7 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
                     fixed=False
                 )
 
-    # Add edges with trajectory information
+    # Modified edge addition to correctly handle precedence
     total_patients = data['TotalPatientsInGroup'].iloc[0]
     for condition_a in patient_conditions:
         relevant_data = filtered_data[filtered_data['ConditionA'] == condition_a]
@@ -328,13 +327,18 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
             if condition_b not in patient_conditions:
                 edge_width = max(1, min(8, math.log2(row['OddsRatio'] + 1)))
                 prevalence = (row['PairFrequency'] / total_patients) * 100
-                directional_percentage = row['DirectionalPercentage']
 
-                if directional_percentage >= 50:
-                    source, target = condition_a, condition_b
+                # Determine direction based on the Precedence field
+                if "precedes" in row['Precedence']:
+                    parts = row['Precedence'].split(" precedes ")
+                    source = parts[0]
+                    target = parts[1]
+                    directional_percentage = row['DirectionalPercentage']
                 else:
-                    source, target = condition_b, condition_a
-                    directional_percentage = 100 - directional_percentage
+                    # Fallback if precedence format is unexpected
+                    source = condition_a
+                    target = condition_b
+                    directional_percentage = row['DirectionalPercentage']
 
                 edge_label = (f"OR: {row['OddsRatio']:.1f}\n"
                             f"Years: {row['MedianDurationYearsWithIQR']}\n"
@@ -561,6 +565,14 @@ def create_personalized_analysis(data, patient_conditions, time_horizon=None, ti
             font-style: italic;
             color: #666;
         }
+        .progression-arrow {
+            color: #4a5568;
+            font-weight: bold;
+        }
+        .percentage {
+            color: #2d3748;
+            font-weight: bold;
+        }
         @media (max-width: 1200px) {
             .trajectory-table {
                 display: block;
@@ -591,7 +603,11 @@ def create_personalized_analysis(data, patient_conditions, time_horizon=None, ti
     """
 
     for condition_a in patient_conditions:
-        time_filtered_data = filtered_data[filtered_data['ConditionA'] == condition_a]
+        time_filtered_data = filtered_data[
+            (filtered_data['ConditionA'] == condition_a) | 
+            (filtered_data['ConditionB'] == condition_a)
+        ]
+        
         if time_horizon and time_margin:
             time_filtered_data = time_filtered_data[
                 time_filtered_data['MedianDurationYearsWithIQR'].apply(
@@ -620,25 +636,46 @@ def create_personalized_analysis(data, patient_conditions, time_horizon=None, ti
             """
 
             for _, row in time_filtered_data.sort_values('OddsRatio', ascending=False).iterrows():
-                condition_b = row['ConditionB']
-                if condition_b not in patient_conditions:
-                    system_b = condition_categories.get(condition_b, 'Other')
+                if row['ConditionA'] == condition_a:
+                    other_condition = row['ConditionB']
+                    direction_percentage = row['DirectionalPercentage']
+                else:
+                    other_condition = row['ConditionA']
+                    direction_percentage = 100 - row['DirectionalPercentage']
+
+                if other_condition not in patient_conditions:
+                    system_b = condition_categories.get(other_condition, 'Other')
                     median, q1, q3 = parse_iqr(row['MedianDurationYearsWithIQR'])
                     prevalence = (row['PairFrequency'] / total_patients) * 100
                     risk_level, color = get_risk_level(row['OddsRatio'])
 
-                    if row['DirectionalPercentage'] >= 50:
-                        direction = f"{condition_a} → {condition_b}"
-                        confidence = row['DirectionalPercentage']
+                    # Parse precedence to determine direction
+                    if "precedes" in row['Precedence']:
+                        parts = row['Precedence'].split(" precedes ")
+                        first_condition = parts[0]
+                        second_condition = parts[1]
+                        direction = f"{first_condition} <span class='progression-arrow'>→</span> {second_condition}"
+                        if first_condition == row['ConditionA']:
+                            percentage = row['DirectionalPercentage']
+                        else:
+                            percentage = 100 - row['DirectionalPercentage']
+                        
+                        progression_text = f"""
+                            {direction}<br>
+                            <span class='percentage'>{percentage:.1f}%</span> of cases follow this pattern
+                        """
                     else:
-                        direction = f"{condition_b} → {condition_a}"
-                        confidence = 100 - row['DirectionalPercentage']
+                        direction = f"{condition_a} <span class='progression-arrow'>→</span> {other_condition}"
+                        progression_text = f"""
+                            {direction}<br>
+                            <span class='percentage'>{direction_percentage:.1f}%</span> of cases follow this pattern
+                        """
 
                     html += f"""
                         <tr>
                             <td><span class="risk-badge" style="background-color: {color}">{risk_level}</span></td>
                             <td>
-                                <strong>{condition_b}</strong><br>
+                                <strong>{other_condition}</strong><br>
                                 <span class="system-tag">{system_b}</span>
                             </td>
                             <td class="timeline-indicator">
@@ -650,8 +687,7 @@ def create_personalized_analysis(data, patient_conditions, time_horizon=None, ti
                                 {row['PairFrequency']} cases ({prevalence:.1f}%)
                             </td>
                             <td>
-                                {confidence:.1f}% confidence in progression order<br>
-                                {direction}
+                                {progression_text}
                             </td>
                         </tr>
                     """
@@ -669,7 +705,7 @@ def create_personalized_analysis(data, patient_conditions, time_horizon=None, ti
                     <li><strong>Risk Level:</strong> Based on odds ratio strength (High: OR≥5, Moderate: OR≥3, Low: OR≥2)</li>
                     <li><strong>Expected Timeline:</strong> Median years and range between which progression typically occurs</li>
                     <li><strong>Statistical Support:</strong> Odds ratio and number of observed cases in the population</li>
-                    <li><strong>Progression Details:</strong> Confidence in the order of disease progression</li>
+                    <li><strong>Progression Details:</strong> Direction of progression and percentage of cases that follow this pattern</li>
                 </ul>
             </div>
         </div>
@@ -677,7 +713,6 @@ def create_personalized_analysis(data, patient_conditions, time_horizon=None, ti
     """
 
     return html
-
 def main():
     # Initialize session state for data persistence
     if 'sensitivity_results' not in st.session_state:
@@ -1142,3 +1177,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+                        

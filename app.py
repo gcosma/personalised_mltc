@@ -148,6 +148,13 @@ def perform_sensitivity_analysis(data):
             sys_b = condition_categories.get(row['ConditionB'], 'Other')
             if sys_a != sys_b and sys_a != 'Other' and sys_b != 'Other':
                 system_pairs.add(tuple(sorted([sys_a, sys_b])))
+                
+        # Add debugging print statements here
+        st.write(f"\nFor threshold {threshold}:")
+        st.write(f"Total system pairs found: {len(system_pairs)}")
+        st.write("System pairs:")
+        for pair in sorted(system_pairs):
+            st.write(f"{pair[0]} - {pair[1]}")
 
         # Calculate duration statistics
         duration_stats = filtered_data['MedianDurationYearsWithIQR'].apply(parse_iqr)

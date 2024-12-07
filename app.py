@@ -162,7 +162,43 @@ def perform_sensitivity_analysis(data):
     return pd.DataFrame(results)
 
 def create_network_graph(data, patient_conditions, min_or, time_horizon=None, time_margin=None):
-    """Create network graph for trajectory visualization"""
+    """Create network graph for trajectory visualization with legend"""
+    # Create HTML for the legend
+    legend_html = """
+    <div style="position: absolute; top: 10px; right: 10px; background: white; 
+                padding: 10px; border: 1px solid #ddd; border-radius: 5px; z-index: 1000;">
+        <h3 style="margin-top: 0; margin-bottom: 10px;">Legend</h3>
+        <div style="margin-bottom: 10px;">
+            <strong>Node Types:</strong><br>
+            ★ Initial Condition<br>
+            ○ Related Condition
+        </div>
+        <div>
+            <strong>Body Systems:</strong><br>
+    """
+    
+    # Add color boxes for each system
+    for system, color in SYSTEM_COLORS.items():
+        legend_html += f"""
+        <div style="display: flex; align-items: center; margin: 2px 0;">
+            <div style="width: 15px; height: 15px; background-color: {color}50; 
+                 border: 1px solid {color}; margin-right: 5px;"></div>
+            <span>{system}</span>
+        </div>
+        """
+    
+    legend_html += """
+        </div>
+        <div style="margin-top: 10px;">
+            <strong>Edge Information:</strong><br>
+            • Edge thickness indicates strength of association<br>
+            • Arrow indicates typical progression direction<br>
+            • Hover over edges for detailed statistics
+        </div>
+    </div>
+    """
+
+    # Create the main network visualization
     net = Network(height="800px", width="100%", bgcolor='white', font_color='black', directed=True)
     
     net.set_options("""
@@ -249,6 +285,7 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
         y = radius * math.sin(angle)
         system_centers[category] = (x, y)
 
+    # Add nodes
     for category, conditions in system_conditions.items():
         center_x, center_y = system_centers[category]
         sub_radius = radius / (len(conditions) + 1)
@@ -285,6 +322,7 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
                     fixed=False
                 )
 
+    # Add edges
     total_patients = data['TotalPatientsInGroup'].iloc[0]
     for condition_a in patient_conditions:
         relevant_data = filtered_data[filtered_data['ConditionA'] == condition_a]
@@ -322,7 +360,13 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
                     smooth={'type': 'curvedCW', 'roundness': 0.2}
                 )
 
-    return net.generate_html()
+    # Generate the HTML and combine with the legend
+    network_html = net.generate_html()
+    
+    # Insert the legend into the network HTML
+    final_html = network_html.replace('</body>', f'{legend_html}</body>')
+    
+    return final_html
 
 def analyze_condition_combinations(data, min_percentage, min_frequency):
     """Analyze combinations of conditions"""

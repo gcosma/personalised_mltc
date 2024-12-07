@@ -60,21 +60,21 @@ condition_categories = {
 
 # System colors for visualization
 SYSTEM_COLORS = {
-    "Endocrine": "#BA55D3",     # Medium Orchid
-    "Blood": "#DC143C",         # Crimson
-    "Digestive": "#32CD32",     # Lime Green
-    "Respiratory": "#48D1CC",   # Medium Turquoise
-    "Neoplasms": "#800080",     # Purple
-    "Cardiovascular": "#FF4500", # Orange Red
-    "Nervous": "#FFD700",       # Gold
-    "Musculoskeletal": "#4682B4", # Steel Blue
-    "Genitourinary": "#DAA520", # Goldenrod
-    "Mental health": "#8B4513", # Saddle Brown
-    "Mental": "#A0522D",       # Sienna
-    "Ear": "#4169E1",          # Royal Blue
-    "Eye": "#20B2AA",          # Light Sea Green
-    "Circulatory": "#FF6347",   # Tomato
-    "Skin": "#F08080"          # Light Coral
+    "Endocrine": "#BA55D3",
+    "Blood": "#DC143C",
+    "Digestive": "#32CD32", 
+    "Respiratory": "#48D1CC",
+    "Neoplasms": "#800080",
+    "Cardiovascular": "#FF4500",
+    "Nervous": "#FFD700",
+    "Musculoskeletal": "#4682B4",
+    "Genitourinary": "#DAA520",
+    "Mental health": "#8B4513",
+    "Mental": "#A0522D",
+    "Ear": "#4169E1",
+    "Eye": "#20B2AA",
+    "Circulatory": "#FF6347",
+    "Skin": "#F08080"
 }
 
 def parse_iqr(iqr_string):
@@ -116,6 +116,7 @@ def load_and_process_data(uploaded_file):
         st.error(f"Error loading file: {str(e)}")
         return None, None, None, None
 
+@st.cache_data
 def perform_sensitivity_analysis(data):
     """Perform sensitivity analysis with corrected calculations"""
     or_thresholds = [2.0, 3.0, 4.0, 5.0]
@@ -161,6 +162,7 @@ def perform_sensitivity_analysis(data):
 
     return pd.DataFrame(results)
 
+@st.cache_data
 def create_network_graph(data, patient_conditions, min_or, time_horizon=None, time_margin=None):
     """Create network graph for trajectory visualization with legend"""
     # Create HTML for the legend
@@ -177,7 +179,6 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
             <strong>Body Systems:</strong><br>
     """
     
-    # Add color boxes for each system
     for system, color in SYSTEM_COLORS.items():
         legend_html += f"""
         <div style="display: flex; align-items: center; margin: 2px 0;">
@@ -198,22 +199,17 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
     </div>
     """
 
-    # Create the main network visualization
     net = Network(height="800px", width="100%", bgcolor='white', font_color='black', directed=True)
     
+    # Network options
     net.set_options("""
     {
         "nodes": {
             "font": {"size": 16},
-            "scaling": {
-                "min": 10,
-                "max": 30
-            }
+            "scaling": {"min": 10, "max": 30}
         },
         "edges": {
-            "color": {
-                "inherit": false
-            },
+            "color": {"inherit": false},
             "font": {
                 "size": 12,
                 "align": "middle",
@@ -240,21 +236,15 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
                 "enabled": true,
                 "iterations": 1000,
                 "updateInterval": 25
-            },
-            "solver": "barnesHut"
-        },
-        "interaction": {
-            "hover": true,
-            "dragNodes": true,
-            "dragView": true,
-            "zoomView": true
+            }
         }
     }
     """)
     
+    # Filter data and identify connected conditions
     filtered_data = data[data['OddsRatio'] >= min_or].copy()
-    
     connected_conditions = set()
+    
     for condition_a in patient_conditions:
         time_filtered_data = filtered_data
         if time_horizon and time_margin:
@@ -268,6 +258,7 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
     active_conditions = set(patient_conditions) | connected_conditions
     active_categories = {condition_categories[cond] for cond in active_conditions if cond in condition_categories}
 
+    # Organize conditions by system
     system_conditions = {}
     for condition in active_conditions:
         category = condition_categories.get(condition, "Other")
@@ -275,6 +266,7 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
             system_conditions[category] = []
         system_conditions[category].append(condition)
 
+    # Calculate layout positions
     angle_step = (2 * math.pi) / len(active_categories)
     radius = 500
     system_centers = {}
@@ -322,7 +314,7 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
                     fixed=False
                 )
 
-    # Add edges
+    # Add edges with trajectory information
     total_patients = data['TotalPatientsInGroup'].iloc[0]
     for condition_a in patient_conditions:
         relevant_data = filtered_data[filtered_data['ConditionA'] == condition_a]
@@ -360,54 +352,64 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
                     smooth={'type': 'curvedCW', 'roundness': 0.2}
                 )
 
-    # Generate the HTML and combine with the legend
+    # Generate final HTML with legend
     network_html = net.generate_html()
-    
-    # Insert the legend into the network HTML
     final_html = network_html.replace('</body>', f'{legend_html}</body>')
     
     return final_html
 
+@st.cache_data
 def analyze_condition_combinations(data, min_percentage, min_frequency):
     """Analyze combinations of conditions"""
     total_patients = data['TotalPatientsInGroup'].iloc[0]
 
-    filtered_data = data[(data['Percentage'] >= min_percentage) &
-                         (data['PairFrequency'] >= min_frequency)].copy()
+    filtered_data = data[
+        (data['Percentage'] >= min_percentage) &
+        (data['PairFrequency'] >= min_frequency)
+    ].copy()
 
-    filtered_data.loc[:, 'ConditionA'] = filtered_data['ConditionA'].str.replace(r'\s*\([^)]*\)', '', regex=True)
-    filtered_data.loc[:, 'ConditionB'] = filtered_data['ConditionB'].str.replace(r'\s*\([^)]*\)', '', regex=True)
-    filtered_data.loc[:, 'ConditionA'] = filtered_data['ConditionA'].str.replace('_', ' ')
-    filtered_data.loc[:, 'ConditionB'] = filtered_data['ConditionB'].str.replace('_', ' ')
+    # Clean condition names
+    for col in ['ConditionA', 'ConditionB']:
+        filtered_data[col] = (filtered_data[col]
+                            .str.replace(r'\s*\([^)]*\)', '', regex=True)
+                            .str.replace('_', ' '))
 
     unique_conditions = pd.unique(filtered_data[['ConditionA', 'ConditionB']].values.ravel('K'))
-
+    
+    # Calculate frequencies
     pair_frequency_map = {}
     condition_frequency_map = {}
-
+    
     for _, row in filtered_data.iterrows():
-        key1 = f"{row['ConditionA']}_{row['ConditionB']}"
-        key2 = f"{row['ConditionB']}_{row['ConditionA']}"
-        pair_frequency_map[key1] = row['PairFrequency']
-        pair_frequency_map[key2] = row['PairFrequency']
+        for key in [f"{row['ConditionA']}_{row['ConditionB']}", 
+                   f"{row['ConditionB']}_{row['ConditionA']}"]:
+            pair_frequency_map[key] = row['PairFrequency']
+        
+        for condition in [row['ConditionA'], row['ConditionB']]:
+            condition_frequency_map[condition] = (
+                condition_frequency_map.get(condition, 0) + row['PairFrequency']
+            )
 
-        condition_frequency_map[row['ConditionA']] = condition_frequency_map.get(row['ConditionA'], 0) + row['PairFrequency']
-        condition_frequency_map[row['ConditionB']] = condition_frequency_map.get(row['ConditionB'], 0) + row['PairFrequency']
-
+    # Analyze combinations
     result_data = []
-
     for k in range(3, min(8, len(unique_conditions) + 1)):
         for comb in combinations(unique_conditions, k):
-            pair_frequencies = [pair_frequency_map.get(f"{a}_{b}", 0) for a, b in combinations(comb, 2)]
+            pair_frequencies = [
+                pair_frequency_map.get(f"{a}_{b}", 0) 
+                for a, b in combinations(comb, 2)
+            ]
+            
             frequency = min(pair_frequencies)
             prevalence = (frequency / total_patients) * 100
-
+            
+            # Calculate odds ratio
             observed = frequency
             expected = total_patients
             for condition in comb:
                 expected *= (condition_frequency_map[condition] / total_patients)
+            
             odds_ratio = observed / expected if expected != 0 else float('inf')
-
+            
             result_data.append({
                 'Combination': ' + '.join(comb),
                 'NumConditions': len(comb),
@@ -417,192 +419,338 @@ def analyze_condition_combinations(data, min_percentage, min_frequency):
             })
 
     results_df = pd.DataFrame(result_data)
-    results_df = results_df.sort_values('Prevalence of the combination (%)', ascending=False)
-    results_df = results_df[results_df['Prevalence of the combination (%)'] > 0]
-
+    results_df = (results_df[results_df['Prevalence of the combination (%)'] > 0]
+                 .sort_values('Prevalence of the combination (%)', ascending=False))
+    
     return results_df
 
+def create_sensitivity_plot(results):
+    """Create the sensitivity analysis visualization"""
+    fig, ax1 = plt.subplots(figsize=(12, 6))
+    ax2 = ax1.twinx()
+
+    x_vals = results['OR_Threshold'].values
+    bar_heights = results['Num_Trajectories']
+
+    # Plot bars and lines
+    bars = ax1.bar(x_vals, bar_heights, alpha=0.3, color='navy')
+    line = ax2.plot(x_vals, results['Coverage_Percent'], 'r-o', linewidth=2)
+
+    # Add scatter plot with variable sizes
+    sizes = (results['System_Pairs'] / results['System_Pairs'].max()) * 500
+    scatter = ax2.scatter(x_vals, results['Coverage_Percent'], s=sizes, alpha=0.5, color='darkred')
+
+    # Add text annotations
+    for i, row in results.iterrows():
+        ax1.text(row['OR_Threshold'], bar_heights[i] * 0.5,
+                f"Median: {row['Median_Duration']:.1f}y\nIQR: [{row['Q1_Duration']:.1f}-{row['Q3_Duration']:.1f}]",
+                ha='center', va='center', fontsize=10)
+
+    # Labels and legend
+    ax1.set_xlabel('Minimum Odds Ratio Threshold')
+    ax1.set_ylabel('Number of Disease Trajectories')
+    ax2.set_ylabel('Population Coverage (%)')
+
+    legend_elements = [
+        patches.Patch(facecolor='navy', alpha=0.3, label='Number of Trajectories'),
+        Line2D([0], [0], color='r', marker='o', label='Population Coverage %'),
+        Line2D([0], [0], marker='o', color='darkred', alpha=0.5, 
+               label='System Pairs', markersize=10, linestyle='None')
+    ]
+    ax1.legend(handles=legend_elements, loc='upper right')
+
+    plt.title('Impact of Odds Ratio Threshold on Disease Trajectory Analysis')
+    plt.tight_layout()
+    return fig
+
+def create_combinations_plot(results_df):
+    """Create the combinations analysis visualization"""
+    fig, ax = plt.subplots(figsize=(12, 6))
+    
+    top_10 = results_df.nlargest(10, 'Prevalence of the combination (%)')
+    bars = ax.bar(range(len(top_10)), top_10['Prevalence of the combination (%)'])
+    
+    # Customize the plot
+    ax.set_xticks(range(len(top_10)))
+    ax.set_xticklabels(top_10['Combination'], rotation=45, ha='right')
+    ax.set_title('Top 10 Condition Combinations by Prevalence')
+    ax.set_xlabel('Condition Combinations')
+    ax.set_ylabel('Prevalence (%)')
+    
+    # Add value labels on top of bars
+    for i, bar in enumerate(bars):
+        height = bar.get_height()
+        ax.text(bar.get_x() + bar.get_width()/2., height,
+                f'{height:.1f}%',
+                ha='center', va='bottom')
+    
+    plt.tight_layout()
+    return fig
+
 def main():
-    st.set_page_config(page_title="Multimorbidity Analysis Tool", layout="wide")
+    # Page configuration
+    st.set_page_config(
+        page_title="Multimorbidity Analysis Tool",
+        layout="wide",
+        initial_sidebar_state="expanded"
+    )
 
-    st.title("Multimorbidity Analysis Tool")
-    st.write("Upload your data file and analyze disease trajectories")
+    # Custom CSS
+    st.markdown("""
+        <style>
+        .main {
+            padding: 2rem;
+        }
+        .stButton > button {
+            width: 100%;
+            height: 3rem;
+            margin: 1rem 0;
+            background-color: #ff4b4b;
+            color: white;
+        }
+        .stButton > button:hover {
+            background-color: #ff3333;
+        }
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 2rem;
+            padding: 1rem 0;
+        }
+        .stTabs [data-baseweb="tab"] {
+            height: 4rem;
+            white-space: pre-wrap;
+            background-color: #f0f2f6;
+            border-radius: 4px;
+        }
+        .stTabs [data-baseweb="tab"]:hover {
+            background-color: #e6e9ef;
+        }
+        .stTabs [data-baseweb="tab"][aria-selected="true"] {
+            background-color: #ff4b4b;
+            color: white;
+        }
+        div[data-testid="stSidebarNav"] {
+            background-color: #f8f9fa;
+            padding: 1rem;
+            border-radius: 4px;
+        }
+        div[data-testid="stFileUploader"] {
+            background-color: #f8f9fa;
+            padding: 2rem;
+            border-radius: 4px;
+            margin-bottom: 2rem;
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
-    uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
+    # Header
+    st.title("🏥 Multimorbidity Analysis Tool")
+    st.markdown("""
+    This tool helps analyze disease trajectories and comorbidity patterns in patient data.
+    Upload your data file to begin analysis.
+    """)
+
+    # File uploader in a container
+    with st.container():
+        uploaded_file = st.file_uploader(
+            "Choose a CSV file",
+            type="csv",
+            help="Upload a CSV file containing your patient data"
+        )
 
     if uploaded_file is not None:
+        # Load and process data
         data, total_patients, gender, age_group = load_and_process_data(uploaded_file)
 
         if data is not None:
-            # Data summary in main area
-            st.write(f"**Data Summary:** {total_patients:,} patients | Gender: {gender} | Age Group: {age_group}")
+            # Data summary in an info box
+            st.info(f"""
+            📊 **Data Summary**
+            - Total Patients: {total_patients:,}
+            - Gender: {gender}
+            - Age Group: {age_group}
+            """)
 
-            tab1, tab2, tab3 = st.tabs(["Sensitivity Analysis", "Trajectory Prediction", "Condition Combinations"])
+            # Create tabs with icons
+            tabs = st.tabs([
+                "📈 Sensitivity Analysis",
+                "🔄 Trajectory Prediction",
+                "🔍 Condition Combinations"
+            ])
 
-            with tab1:
+            # Sensitivity Analysis Tab
+            with tabs[0]:
                 st.header("Sensitivity Analysis")
                 st.markdown("""
-                This analysis explores how different odds ratio thresholds affect the number of disease trajectories 
-                and population coverage in the dataset.
+                Explore how different odds ratio thresholds affect the number of disease
+                trajectories and population coverage.
                 """)
                 
-                col1, col2 = st.columns([3, 1])
-                with col2:
-                    if st.button("Run Sensitivity Analysis", key="run_sensitivity"):
-                        with col1:
-                            with st.spinner("Performing sensitivity analysis..."):
-                                results = perform_sensitivity_analysis(data)
+                analysis_col1, analysis_col2 = st.columns([3, 1])
+                
+                with analysis_col2:
+                    st.markdown("### Control Panel")
+                    analyze_button = st.button(
+                        "🚀 Run Analysis",
+                        key="run_sensitivity",
+                        help="Click to perform sensitivity analysis"
+                    )
 
-                                st.subheader("Analysis Results")
-                                display_df = results.drop('Top_Patterns', axis=1)
-                                st.dataframe(display_df)
+                with analysis_col1:
+                    if analyze_button:
+                        with st.spinner("💫 Analyzing data..."):
+                            results = perform_sensitivity_analysis(data)
+                            
+                            st.subheader("Analysis Results")
+                            display_df = results.drop('Top_Patterns', axis=1)
+                            st.dataframe(
+                                display_df.style.background_gradient(cmap='YlOrRd', subset=['Coverage_Percent'])
+                            )
 
-                                st.subheader("Top 5 Strongest Trajectories")
-                                patterns_df = pd.DataFrame(results.iloc[0]['Top_Patterns'])
-                                st.dataframe(patterns_df)
+                            st.subheader("Top 5 Strongest Trajectories")
+                            patterns_df = pd.DataFrame(results.iloc[0]['Top_Patterns'])
+                            st.dataframe(
+                                patterns_df.style.background_gradient(cmap='YlOrRd', subset=['OddsRatio'])
+                            )
 
-                                fig, ax1 = plt.subplots(figsize=(12, 6))
-                                ax2 = ax1.twinx()
+                            # Visualization
+                            fig = create_sensitivity_plot(results)
+                            st.pyplot(fig)
 
-                                x_vals = results['OR_Threshold'].values
-                                bar_heights = results['Num_Trajectories']
+                            # Download button
+                            csv = display_df.to_csv(index=False)
+                            st.download_button(
+                                label="📥 Download Results",
+                                data=csv,
+                                file_name="sensitivity_analysis_results.csv",
+                                mime="text/csv"
+                            )
 
-                                bars = ax1.bar(x_vals, bar_heights, alpha=0.3, color='navy')
-                                line = ax2.plot(x_vals, results['Coverage_Percent'], 'r-o', linewidth=2)
-
-                                sizes = (results['System_Pairs'] / results['System_Pairs'].max()) * 500
-                                scatter = ax2.scatter(x_vals, results['Coverage_Percent'], s=sizes, alpha=0.5, color='darkred')
-
-                                for i, row in results.iterrows():
-                                    ax1.text(row['OR_Threshold'], bar_heights[i] * 0.5,
-                                            f"Median: {row['Median_Duration']:.1f}y\nIQR: [{row['Q1_Duration']:.1f}-{row['Q3_Duration']:.1f}]",
-                                            ha='center', va='center', fontsize=10)
-
-                                ax1.set_xlabel('Minimum Odds Ratio Threshold')
-                                ax1.set_ylabel('Number of Disease Trajectories')
-                                ax2.set_ylabel('Population Coverage (%)')
-
-                                legend_elements = [
-                                    patches.Patch(facecolor='navy', alpha=0.3,
-                                                label='Number of Disease Trajectories\n(Height of bars)'),
-                                    Line2D([0], [0], color='r', marker='o',
-                                           label='Population Coverage %\n(Red line)'),
-                                    Line2D([0], [0], marker='o', color='darkred', alpha=0.5,
-                                           label='Body System Pairs\n(Size of circles)',
-                                           markersize=10, linestyle='None')
-                                ]
-                                ax1.legend(handles=legend_elements, loc='upper right')
-
-                                plt.title(f'Impact of Odds Ratio Threshold on Disease Trajectory Analysis')
-                                plt.tight_layout()
-                                st.pyplot(fig)
-
-                                csv = display_df.to_csv(index=False)
-                                st.download_button(
-                                    label="Download Analysis Results",
-                                    data=csv,
-                                    file_name="sensitivity_analysis_results.csv",
-                                    mime="text/csv"
-                                )
-            
-            with tab2:
+            # Trajectory Prediction Tab
+            with tabs[1]:
                 st.header("Trajectory Prediction")
                 
-                # Split the tab into two columns for parameters and visualization
                 viz_col, param_col = st.columns([3, 1])
                 
                 with param_col:
-                    st.subheader("Parameters")
-                    min_or = st.slider("Minimum Odds Ratio", 1.0, 10.0, 2.0, 0.5)
-                    unique_conditions = sorted(set(data['ConditionA'].unique()) | set(data['ConditionB'].unique()))
-                    selected_conditions = st.multiselect("Select Initial Conditions", unique_conditions)
+                    st.markdown("### Parameters")
+                    with st.container():
+                        min_or = st.slider(
+                            "Minimum Odds Ratio",
+                            1.0, 10.0, 2.0, 0.5,
+                            help="Filter trajectories by minimum odds ratio"
+                        )
+                        
+                        unique_conditions = sorted(set(data['ConditionA'].unique()) | set(data['ConditionB'].unique()))
+                        selected_conditions = st.multiselect(
+                            "Select Initial Conditions",
+                            unique_conditions,
+                            help="Choose the starting conditions for trajectory analysis"
+                        )
 
-                    if selected_conditions:
-                        max_years = math.ceil(data['MedianDurationYearsWithIQR'].apply(lambda x: parse_iqr(x)[0]).max())
-                        time_horizon = st.slider("Time Horizon (years)", 1, max_years, min(5, max_years))
-                        time_margin = st.slider("Time Margin", 0.0, 0.5, 0.1, 0.05)
+                        if selected_conditions:
+                            max_years = math.ceil(data['MedianDurationYearsWithIQR'].apply(lambda x: parse_iqr(x)[0]).max())
+                            time_horizon = st.slider(
+                                "Time Horizon (years)",
+                                1, max_years, min(5, max_years),
+                                help="Maximum time period to consider"
+                            )
+                            
+                            time_margin = st.slider(
+                                "Time Margin",
+                                0.0, 0.5, 0.1, 0.05,
+                                help="Allowable variation in time predictions"
+                            )
 
-                        if st.button("Generate Trajectory Network"):
-                            with st.spinner("Generating network visualization..."):
-                                try:
-                                    html_content = create_network_graph(
-                                        data, 
-                                        selected_conditions, 
-                                        min_or, 
-                                        time_horizon, 
-                                        time_margin
-                                    )
-                                    
-                                    with viz_col:
-                                        st.components.v1.html(html_content, height=800)
-                                    
-                                    st.download_button(
-                                        label="Download Network Graph",
-                                        data=html_content,
-                                        file_name="trajectory_network.html",
-                                        mime="text/html"
-                                    )
-                                except Exception as e:
-                                    with viz_col:
-                                        st.error(f"Failed to generate network graph: {e}")
-            
-            with tab3:
+                            generate_button = st.button(
+                                "🔄 Generate Network",
+                                help="Click to generate trajectory network"
+                            )
+
+                with viz_col:
+                    if selected_conditions and generate_button:
+                        with st.spinner("🌐 Generating network..."):
+                            try:
+                                html_content = create_network_graph(
+                                    data,
+                                    selected_conditions,
+                                    min_or,
+                                    time_horizon,
+                                    time_margin
+                                )
+                                st.components.v1.html(html_content, height=800)
+                                
+                                st.download_button(
+                                    label="📥 Download Network",
+                                    data=html_content,
+                                    file_name="trajectory_network.html",
+                                    mime="text/html"
+                                )
+                            except Exception as e:
+                                st.error(f"Failed to generate network: {str(e)}")
+
+            # Condition Combinations Tab
+            with tabs[2]:
                 st.header("Condition Combinations Analysis")
                 
-                # Split into two columns for parameters and results
                 param_col, results_col = st.columns([1, 3])
                 
                 with param_col:
-                    st.subheader("Analysis Parameters")
+                    st.markdown("### Analysis Parameters")
                     
                     min_freq_range = (data['PairFrequency'].min(), data['PairFrequency'].max())
-                    min_percentage_range = (data['Percentage'].min(), data['Percentage'].max())
-
                     min_frequency = st.slider(
-                        "Minimum Pair Frequency", 
-                        min_value=int(min_freq_range[0]), 
-                        max_value=int(min_freq_range[1]), 
-                        value=int(min_freq_range[0])
+                        "Minimum Pair Frequency",
+                        int(min_freq_range[0]),
+                        int(min_freq_range[1]),
+                        int(min_freq_range[0]),
+                        help="Minimum number of occurrences required"
                     )
                     
+                    min_percentage_range = (data['Percentage'].min(), data['Percentage'].max())
                     min_percentage = st.slider(
-                        "Minimum Prevalence Percentage (%)", 
-                        min_value=float(min_percentage_range[0]), 
-                        max_value=float(min_percentage_range[1]), 
-                        value=float(min_percentage_range[0]),
-                        step=0.1
+                        "Minimum Prevalence (%)",
+                        float(min_percentage_range[0]),
+                        float(min_percentage_range[1]),
+                        float(min_percentage_range[0]),
+                        0.1,
+                        help="Minimum percentage of population affected"
                     )
 
-                    analyze_button = st.button("Analyze Combinations")
+                    analyze_combinations_button = st.button(
+                        "🔍 Analyze Combinations",
+                        help="Click to analyze condition combinations"
+                    )
 
                 with results_col:
-                    if analyze_button:
-                        with st.spinner("Analyzing condition combinations..."):
-                            results_df = analyze_condition_combinations(data, min_percentage, min_frequency)
+                    if analyze_combinations_button:
+                        with st.spinner("🔄 Analyzing combinations..."):
+                            results_df = analyze_condition_combinations(
+                                data,
+                                min_percentage,
+                                min_frequency
+                            )
                             
-                            st.subheader(f"Analysis Results (Total Combinations: {len(results_df)})")
-                            st.dataframe(results_df)
-
                             if not results_df.empty:
-                                fig, ax = plt.subplots(figsize=(12, 6))
-                                top_10 = results_df.nlargest(10, 'Prevalence of the combination (%)')
-                                ax.bar(top_10['Combination'], top_10['Prevalence of the combination (%)'])
-                                ax.set_title('Top 10 Condition Combinations by Prevalence')
-                                ax.set_xlabel('Condition Combination')
-                                ax.set_ylabel('Prevalence (%)')
-                                plt.xticks(rotation=45, ha='right')
-                                plt.tight_layout()
+                                st.subheader(f"Analysis Results ({len(results_df)} combinations)")
+                                st.dataframe(
+                                    results_df.style.background_gradient(
+                                        cmap='YlOrRd',
+                                        subset=['Prevalence of the combination (%)']
+                                    )
+                                )
+
+                                fig = create_combinations_plot(results_df)
                                 st.pyplot(fig)
 
                                 csv = results_df.to_csv(index=False)
                                 st.download_button(
-                                    label="Download Full Results",
+                                    label="📥 Download Results",
                                     data=csv,
                                     file_name="condition_combinations.csv",
                                     mime="text/csv"
                                 )
                             else:
-                                st.warning("No combinations found matching the specified criteria.")
+                                st.warning("No combinations found matching the criteria.")
 
 if __name__ == "__main__":
     main()

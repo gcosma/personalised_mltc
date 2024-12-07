@@ -128,36 +128,21 @@ def perform_sensitivity_analysis(data):
     ].to_dict('records')
 
     for threshold in or_thresholds:
-        # Filter data based on odds ratio threshold
         filtered_data = data[data['OddsRatio'] >= threshold].copy()
         n_trajectories = len(filtered_data)
 
-        # Corrected coverage calculation
         total_pairs = filtered_data['PairFrequency'].sum()
         estimated_unique_patients = total_pairs / 2
         coverage = min((estimated_unique_patients / total_patients) * 100, 100.0)
 
-        # Corrected system pairs calculation
+        # Matching Jupyter version exactly
         system_pairs = set()
-        filtered_data_clean = filtered_data.copy()
-        # Clean condition names if needed
-        filtered_data_clean['ConditionA'] = filtered_data_clean['ConditionA'].str.replace(r'\s*\([^)]*\)', '', regex=True)
-        filtered_data_clean['ConditionB'] = filtered_data_clean['ConditionB'].str.replace(r'\s*\([^)]*\)', '', regex=True)
-        
-        for _, row in filtered_data_clean.iterrows():
+        for _, row in filtered_data.iterrows():
             sys_a = condition_categories.get(row['ConditionA'], 'Other')
             sys_b = condition_categories.get(row['ConditionB'], 'Other')
-            if sys_a != sys_b and sys_a != 'Other' and sys_b != 'Other':
+            if sys_a != sys_b:
                 system_pairs.add(tuple(sorted([sys_a, sys_b])))
-                
-        # Add debugging print statements here
-        st.write(f"\nFor threshold {threshold}:")
-        st.write(f"Total system pairs found: {len(system_pairs)}")
-        st.write("System pairs:")
-        for pair in sorted(system_pairs):
-            st.write(f"{pair[0]} - {pair[1]}")
 
-        # Calculate duration statistics
         duration_stats = filtered_data['MedianDurationYearsWithIQR'].apply(parse_iqr)
         medians = [x[0] for x in duration_stats if x[0] > 0]
         q1s = [x[1] for x in duration_stats if x[1] > 0]

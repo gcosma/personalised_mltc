@@ -14,6 +14,7 @@ from pathlib import Path
 from matplotlib import patches
 from itertools import combinations
 
+# Disease category mappings
 condition_categories = {
     "Addisons Disease": "Endocrine",
     "Anaemia": "Blood",
@@ -57,7 +58,7 @@ condition_categories = {
     "Visual Impairment": "Eye"
 }
 
-# For system colors, let's organize them based on the order they appear in the conditions
+# System colors for visualization
 SYSTEM_COLORS = {
     "Endocrine": "#BA55D3",     # Medium Orchid
     "Blood": "#DC143C",         # Crimson
@@ -135,7 +136,6 @@ def perform_sensitivity_analysis(data):
         estimated_unique_patients = total_pairs / 2
         coverage = min((estimated_unique_patients / total_patients) * 100, 100.0)
 
-        # Matching Jupyter version exactly
         system_pairs = set()
         for _, row in filtered_data.iterrows():
             sys_a = condition_categories.get(row['ConditionA'], 'Other')
@@ -378,66 +378,6 @@ def analyze_condition_combinations(data, min_percentage, min_frequency):
 
     return results_df
 
-def condition_combinations_tab(data):
-    """Condition Combinations Analysis Tab"""
-    try:
-        st.header("Condition Combinations Analysis")
-        st.markdown("""
-        ### Analyze Multi-Condition Combinations
-        This analysis helps you discover interesting combinations of conditions 
-        that frequently appear together in the patient population.
-        """)
-    except Exception as e:
-        st.error(f"Error in Condition Combinations tab: {e}")
-
-    st.sidebar.subheader("Combination Analysis Parameters")
-    
-    min_freq_range = (data['PairFrequency'].min(), data['PairFrequency'].max())
-    min_percentage_range = (data['Percentage'].min(), data['Percentage'].max())
-
-    min_frequency = st.sidebar.slider(
-        "Minimum Pair Frequency", 
-        min_value=int(min_freq_range[0]), 
-        max_value=int(min_freq_range[1]), 
-        value=int(min_freq_range[0])
-    )
-    
-    min_percentage = st.sidebar.slider(
-        "Minimum Prevalence Percentage (%)", 
-        min_value=float(min_percentage_range[0]), 
-        max_value=float(min_percentage_range[1]), 
-        value=float(min_percentage_range[0]),
-        step=0.1
-    )
-
-    if st.button("Analyze Condition Combinations"):
-        with st.spinner("Analyzing condition combinations..."):
-            results_df = analyze_condition_combinations(data, min_percentage, min_frequency)
-            
-            st.subheader(f"Analysis Results (Total Combinations: {len(results_df)})")
-            st.dataframe(results_df)
-
-            if not results_df.empty:
-                fig, ax = plt.subplots(figsize=(12, 6))
-                top_10 = results_df.nlargest(10, 'Prevalence of the combination (%)')
-                ax.bar(top_10['Combination'], top_10['Prevalence of the combination (%)'])
-                ax.set_title('Top 10 Condition Combinations by Prevalence')
-                ax.set_xlabel('Condition Combination')
-                ax.set_ylabel('Prevalence (%)')
-                plt.xticks(rotation=45, ha='right')
-                plt.tight_layout()
-                st.pyplot(fig)
-
-                csv = results_df.to_csv(index=False)
-                st.download_button(
-                    label="Download Full Results",
-                    data=csv,
-                    file_name="condition_combinations.csv",
-                    mime="text/csv"
-                )
-            else:
-                st.warning("No combinations found matching the specified criteria.")
-
 def main():
     st.set_page_config(page_title="Multimorbidity Analysis Tool", layout="wide")
 
@@ -450,82 +390,85 @@ def main():
         data, total_patients, gender, age_group = load_and_process_data(uploaded_file)
 
         if data is not None:
-            st.sidebar.header("Data Summary")
-            st.sidebar.write(f"Total patients: {total_patients:,}")
-            st.sidebar.write(f"Gender: {gender}")
-            st.sidebar.write(f"Age Group: {age_group}")
+            # Data summary in main area
+            st.write(f"**Data Summary:** {total_patients:,} patients | Gender: {gender} | Age Group: {age_group}")
 
             tab1, tab2, tab3 = st.tabs(["Sensitivity Analysis", "Trajectory Prediction", "Condition Combinations"])
 
             with tab1:
                 st.header("Sensitivity Analysis")
-                if st.button("Run Sensitivity Analysis"):
-                    with st.spinner("Performing sensitivity analysis..."):
-                        results = perform_sensitivity_analysis(data)
+                st.markdown("""
+                This analysis explores how different odds ratio thresholds affect the number of disease trajectories 
+                and population coverage in the dataset.
+                """)
+                
+                col1, col2 = st.columns([3, 1])
+                with col2:
+                    if st.button("Run Sensitivity Analysis", key="run_sensitivity"):
+                        with col1:
+                            with st.spinner("Performing sensitivity analysis..."):
+                                results = perform_sensitivity_analysis(data)
 
-                        st.subheader("Analysis Results")
-                        display_df = results.drop('Top_Patterns', axis=1)
-                        st.dataframe(display_df)
+                                st.subheader("Analysis Results")
+                                display_df = results.drop('Top_Patterns', axis=1)
+                                st.dataframe(display_df)
 
-                        st.subheader("Top 5 Strongest Trajectories")
-                        patterns_df = pd.DataFrame(results.iloc[0]['Top_Patterns'])
-                        st.dataframe(patterns_df)
+                                st.subheader("Top 5 Strongest Trajectories")
+                                patterns_df = pd.DataFrame(results.iloc[0]['Top_Patterns'])
+                                st.dataframe(patterns_df)
 
-                        fig, ax1 = plt.subplots(figsize=(12, 6))
-                        ax2 = ax1.twinx()
+                                fig, ax1 = plt.subplots(figsize=(12, 6))
+                                ax2 = ax1.twinx()
 
-                        x_vals = results['OR_Threshold'].values
-                        bar_heights = results['Num_Trajectories']
+                                x_vals = results['OR_Threshold'].values
+                                bar_heights = results['Num_Trajectories']
 
-                        bars = ax1.bar(x_vals, bar_heights, alpha=0.3, color='navy')
-                        line = ax2.plot(x_vals, results['Coverage_Percent'], 'r-o', linewidth=2)
+                                bars = ax1.bar(x_vals, bar_heights, alpha=0.3, color='navy')
+                                line = ax2.plot(x_vals, results['Coverage_Percent'], 'r-o', linewidth=2)
 
-                        sizes = (results['System_Pairs'] / results['System_Pairs'].max()) * 500
-                        scatter = ax2.scatter(x_vals, results['Coverage_Percent'], s=sizes, alpha=0.5, color='darkred')
+                                sizes = (results['System_Pairs'] / results['System_Pairs'].max()) * 500
+                                scatter = ax2.scatter(x_vals, results['Coverage_Percent'], s=sizes, alpha=0.5, color='darkred')
 
-                        for i, row in results.iterrows():
-                            ax1.text(row['OR_Threshold'], bar_heights[i] * 0.5,
-                                    f"Median: {row['Median_Duration']:.1f}y\nIQR: [{row['Q1_Duration']:.1f}-{row['Q3_Duration']:.1f}]",
-                                    ha='center', va='center', fontsize=10)
+                                for i, row in results.iterrows():
+                                    ax1.text(row['OR_Threshold'], bar_heights[i] * 0.5,
+                                            f"Median: {row['Median_Duration']:.1f}y\nIQR: [{row['Q1_Duration']:.1f}-{row['Q3_Duration']:.1f}]",
+                                            ha='center', va='center', fontsize=10)
 
-                        ax1.set_xlabel('Minimum Odds Ratio Threshold')
-                        ax1.set_ylabel('Number of Disease Trajectories')
-                        ax2.set_ylabel('Population Coverage (%)')
+                                ax1.set_xlabel('Minimum Odds Ratio Threshold')
+                                ax1.set_ylabel('Number of Disease Trajectories')
+                                ax2.set_ylabel('Population Coverage (%)')
 
-                        legend_elements = [
-                            patches.Patch(facecolor='navy', alpha=0.3,
-                                        label='Number of Disease Trajectories\n(Height of bars)'),
-                            Line2D([0], [0], color='r', marker='o',
-                                   label='Population Coverage %\n(Red line)'),
-                            Line2D([0], [0], marker='o', color='darkred', alpha=0.5,
-                                   label='Body System Pairs\n(Size of circles)',
-                                   markersize=10, linestyle='None')
-                        ]
-                        ax1.legend(handles=legend_elements, loc='upper right')
+                                legend_elements = [
+                                    patches.Patch(facecolor='navy', alpha=0.3,
+                                                label='Number of Disease Trajectories\n(Height of bars)'),
+                                    Line2D([0], [0], color='r', marker='o',
+                                           label='Population Coverage %\n(Red line)'),
+                                    Line2D([0], [0], marker='o', color='darkred', alpha=0.5,
+                                           label='Body System Pairs\n(Size of circles)',
+                                           markersize=10, linestyle='None')
+                                ]
+                                ax1.legend(handles=legend_elements, loc='upper right')
 
-                        if gender and age_group:
-                            plt.title(f'Impact of Odds Ratio Threshold on Disease Trajectory Analysis in {gender}s {age_group}')
-                        else:
-                            plt.title('Impact of Odds Ratio Threshold on Disease Trajectory Analysis in General Population')
+                                plt.title(f'Impact of Odds Ratio Threshold on Disease Trajectory Analysis')
+                                plt.tight_layout()
+                                st.pyplot(fig)
 
-                        plt.tight_layout()
-                        st.pyplot(fig)
-
-                        csv = display_df.to_csv(index=False)
-                        st.download_button(
-                            label="Download Analysis Results",
-                            data=csv,
-                            file_name="sensitivity_analysis_results.csv",
-                            mime="text/csv"
-                        )
+                                csv = display_df.to_csv(index=False)
+                                st.download_button(
+                                    label="Download Analysis Results",
+                                    data=csv,
+                                    file_name="sensitivity_analysis_results.csv",
+                                    mime="text/csv"
+                                )
             
             with tab2:
                 st.header("Trajectory Prediction")
-
-                main_container = st.container()
-                col1, col2 = main_container.columns([4, 1])
-
-                with col2:
+                
+                # Split the tab into two columns for parameters and visualization
+                viz_col, param_col = st.columns([3, 1])
+                
+                with param_col:
+                    st.subheader("Parameters")
                     min_or = st.slider("Minimum Odds Ratio", 1.0, 10.0, 2.0, 0.5)
                     unique_conditions = sorted(set(data['ConditionA'].unique()) | set(data['ConditionB'].unique()))
                     selected_conditions = st.multiselect("Select Initial Conditions", unique_conditions)
@@ -546,7 +489,7 @@ def main():
                                         time_margin
                                     )
                                     
-                                    with col1:
+                                    with viz_col:
                                         st.components.v1.html(html_content, height=800)
                                     
                                     st.download_button(
@@ -556,11 +499,66 @@ def main():
                                         mime="text/html"
                                     )
                                 except Exception as e:
-                                    with col1:
+                                    with viz_col:
                                         st.error(f"Failed to generate network graph: {e}")
             
             with tab3:
-                condition_combinations_tab(data)
+                st.header("Condition Combinations Analysis")
+                
+                # Split into two columns for parameters and results
+                param_col, results_col = st.columns([1, 3])
+                
+                with param_col:
+                    st.subheader("Analysis Parameters")
+                    
+                    min_freq_range = (data['PairFrequency'].min(), data['PairFrequency'].max())
+                    min_percentage_range = (data['Percentage'].min(), data['Percentage'].max())
+
+                    min_frequency = st.slider(
+                        "Minimum Pair Frequency", 
+                        min_value=int(min_freq_range[0]), 
+                        max_value=int(min_freq_range[1]), 
+                        value=int(min_freq_range[0])
+                    )
+                    
+                    min_percentage = st.slider(
+                        "Minimum Prevalence Percentage (%)", 
+                        min_value=float(min_percentage_range[0]), 
+                        max_value=float(min_percentage_range[1]), 
+                        value=float(min_percentage_range[0]),
+                        step=0.1
+                    )
+
+                    analyze_button = st.button("Analyze Combinations")
+
+                with results_col:
+                    if analyze_button:
+                        with st.spinner("Analyzing condition combinations..."):
+                            results_df = analyze_condition_combinations(data, min_percentage, min_frequency)
+                            
+                            st.subheader(f"Analysis Results (Total Combinations: {len(results_df)})")
+                            st.dataframe(results_df)
+
+                            if not results_df.empty:
+                                fig, ax = plt.subplots(figsize=(12, 6))
+                                top_10 = results_df.nlargest(10, 'Prevalence of the combination (%)')
+                                ax.bar(top_10['Combination'], top_10['Prevalence of the combination (%)'])
+                                ax.set_title('Top 10 Condition Combinations by Prevalence')
+                                ax.set_xlabel('Condition Combination')
+                                ax.set_ylabel('Prevalence (%)')
+                                plt.xticks(rotation=45, ha='right')
+                                plt.tight_layout()
+                                st.pyplot(fig)
+
+                                csv = results_df.to_csv(index=False)
+                                st.download_button(
+                                    label="Download Full Results",
+                                    data=csv,
+                                    file_name="condition_combinations.csv",
+                                    mime="text/csv"
+                                )
+                            else:
+                                st.warning("No combinations found matching the specified criteria.")
 
 if __name__ == "__main__":
     main()

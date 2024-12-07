@@ -14,64 +14,65 @@ from pathlib import Path
 from matplotlib import patches
 from itertools import combinations
 
-# Complete dictionary of conditions and their categories
 condition_categories = {
+    "Addisons Disease": "Endocrine",
     "Anaemia": "Blood",
-    "Cardiac Arrhythmias": "Circulatory",
-    "Coronary Heart Disease": "Circulatory",
-    "Heart Failure": "Circulatory",
-    "Hypertension": "Circulatory",
-    "Peripheral Vascular Disease": "Circulatory",
-    "Stroke": "Circulatory",
     "Barretts Oesophagus": "Digestive",
+    "Bronchiectasis": "Respiratory",
+    "Cancer": "Neoplasms",
+    "Cardiac Arrhythmias": "Cardiovascular",
+    "Cerebral Palsy": "Nervous",
+    "Chronic Airway Diseases": "Respiratory",
+    "Chronic Arthritis": "Musculoskeletal",
     "Chronic Constipation": "Digestive",
     "Chronic Diarrhoea": "Digestive",
-    "Cirrhosis": "Digestive",
-    "Dysphagia": "Digestive",
-    "Inflammatory Bowel Disease": "Digestive",
-    "Reflux Disorders": "Digestive",
-    "Hearing Loss": "Ear",
-    "Addisons Disease": "Endocrine",
-    "Diabetes": "Endocrine",
-    "Polycystic Ovary Syndrome": "Endocrine",
-    "Thyroid Disorders": "Endocrine",
-    "Visual Impairment": "Eye",
     "Chronic Kidney Disease": "Genitourinary",
-    "Menopausal and Perimenopausal": "Genitourinary",
-    "Dementia": "Mental",
-    "Mental Illness": "Mental",
-    "Tourette": "Mental",
-    "Chronic Arthritis": "Musculoskeletal",
     "Chronic Pain Conditions": "Musculoskeletal",
-    "Osteoporosis": "Musculoskeletal",
-    "Cancer": "Neoplasms",
-    "Cerebral Palsy": "Nervous",
+    "Chronic Pneumonia": "Respiratory",
+    "Cirrhosis": "Digestive",
+    "Coronary Heart Disease": "Cardiovascular",
+    "Dementia": "Mental health",
+    "Diabetes": "Endocrine",
+    "Dysphagia": "Digestive",
     "Epilepsy": "Nervous",
+    "Heart Failure": "Cardiovascular",
+    "Hearing Loss": "Ear",
+    "Hypertension": "Cardiovascular",
+    "Inflammatory Bowel Disease": "Digestive",
     "Insomnia": "Nervous",
+    "Interstitial Lung Disease": "Respiratory",
+    "Mental Illness": "Mental",
+    "Menopausal and Perimenopausal": "Genitourinary",
     "Multiple Sclerosis": "Nervous",
     "Neuropathic Pain": "Nervous",
+    "Osteoporosis": "Musculoskeletal",
     "Parkinsons": "Nervous",
-    "Bronchiectasis": "Respiratory",
-    "Chronic Airway Diseases": "Respiratory",
-    "Chronic Pneumonia": "Respiratory",
-    "Interstitial Lung Disease": "Respiratory",
-    "Psoriasis": "Skin"
+    "Peripheral Vascular Disease": "Circulatory",
+    "Polycystic Ovary Syndrome": "Endocrine",
+    "Psoriasis": "Skin",
+    "Reflux Disorders": "Digestive",
+    "Stroke": "Nervous",
+    "Thyroid Disorders": "Endocrine",
+    "Tourette": "Mental health",
+    "Visual Impairment": "Eye"
 }
 
-# System colors
+# For system colors, let's organize them based on the order they appear in the conditions
 SYSTEM_COLORS = {
-    "Blood": "#DC143C",         # Crimson
-    "Circulatory": "#FF4500",   # Orange Red
-    "Digestive": "#32CD32",     # Lime Green
-    "Ear": "#4169E1",          # Royal Blue
     "Endocrine": "#BA55D3",     # Medium Orchid
-    "Eye": "#20B2AA",          # Light Sea Green
-    "Genitourinary": "#DAA520", # Goldenrod
-    "Mental": "#8B4513",        # Saddle Brown
-    "Musculoskeletal": "#4682B4", # Steel Blue
-    "Neoplasms": "#800080",     # Purple
-    "Nervous": "#FFD700",       # Gold
+    "Blood": "#DC143C",         # Crimson
+    "Digestive": "#32CD32",     # Lime Green
     "Respiratory": "#48D1CC",   # Medium Turquoise
+    "Neoplasms": "#800080",     # Purple
+    "Cardiovascular": "#FF4500", # Orange Red
+    "Nervous": "#FFD700",       # Gold
+    "Musculoskeletal": "#4682B4", # Steel Blue
+    "Genitourinary": "#DAA520", # Goldenrod
+    "Mental health": "#8B4513", # Saddle Brown
+    "Mental": "#A0522D",       # Sienna
+    "Ear": "#4169E1",          # Royal Blue
+    "Eye": "#20B2AA",          # Light Sea Green
+    "Circulatory": "#FF6347",   # Tomato
     "Skin": "#F08080"          # Light Coral
 }
 

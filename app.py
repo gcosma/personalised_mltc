@@ -987,38 +987,38 @@ with param_col:
                 help="Click to generate trajectory network"
             )
            
-                with viz_col:
-                    # Show previous network if it exists
-                    if st.session_state.network_html is not None:
-                        st.components.v1.html(st.session_state.network_html, height=800)
-                        st.download_button(
-                            label="📥 Download Network",
-                            data=st.session_state.network_html,
-                            file_name="trajectory_network.html",
-                            mime="text/html"
-                        )
-                        
-                    if selected_conditions and generate_button:
-                        with st.spinner("🌐 Generating network..."):
-                            try:
-                                html_content = create_network_graph(
-                                    data,
-                                    selected_conditions,
-                                    min_or,
-                                    time_horizon,
-                                    time_margin
-                                )
-                                st.session_state.network_html = html_content
-                                st.components.v1.html(html_content, height=800)
-                                
-                                st.download_button(
-                                    label="📥 Download Network",
-                                    data=html_content,
-                                    file_name="trajectory_network.html",
-                                    mime="text/html"
-                                )
-                            except Exception as e:
-                                st.error(f"Failed to generate network: {str(e)}")
+            with viz_col:
+                      # Show previous network if it exists
+                      if st.session_state.network_html is not None:
+                          st.components.v1.html(st.session_state.network_html, height=800)
+                          st.download_button(
+                              label="📥 Download Network",
+                              data=st.session_state.network_html,
+                              file_name="trajectory_network.html",
+                              mime="text/html"
+                          )
+                          
+                      if selected_conditions and generate_button:
+                          with st.spinner("🌐 Generating network..."):
+                              try:
+                                  html_content = create_network_graph(
+                                      data,
+                                      selected_conditions,
+                                      min_or,
+                                      time_horizon,
+                                      time_margin
+                                  )
+                                  st.session_state.network_html = html_content
+                                  st.components.v1.html(html_content, height=800)
+                                  
+                                  st.download_button(
+                                      label="📥 Download Network",
+                                      data=html_content,
+                                      file_name="trajectory_network.html",
+                                      mime="text/html"
+                                  )
+                              except Exception as e:
+                                  st.error(f"Failed to generate network: {str(e)}")
 
             # Condition Combinations Tab
             with tabs[2]:

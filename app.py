@@ -65,7 +65,6 @@ SYSTEM_COLORS = {
     "Digestive": "#32CD32", 
     "Respiratory": "#48D1CC",
     "Neoplasms": "#800080",
-    "Cardiovascular": "#FF4500",
     "Nervous": "#FFD700",
     "Musculoskeletal": "#4682B4",
     "Genitourinary": "#DAA520",

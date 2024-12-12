@@ -932,51 +932,61 @@ def main():
                 st.header("Trajectory Prediction")
                 
                 viz_col, param_col = st.columns([3, 1])
-                
-                with param_col:
-                    st.markdown("### Parameters")
-                    with st.container():
-                        min_or = st.slider(
-                            "Minimum Odds Ratio",
-                            1.0, 10.0, st.session_state.min_or, 0.5,
-                            key="trajectory_min_or",
-                            help="Filter trajectories by minimum odds ratio"
-                        )
-                        st.session_state.min_or = min_or
-                        
-                        unique_conditions = sorted(set(data['ConditionA'].unique()) | set(data['ConditionB'].unique()))
-                        selected_conditions = st.multiselect(
-                            "Select Initial Conditions",
-                            unique_conditions,
-                            default=st.session_state.selected_conditions,
-                            key="trajectory_conditions",
-                            help="Choose the starting conditions for trajectory analysis"
-                        )
-                        st.session_state.selected_conditions = selected_conditions
 
-                        if selected_conditions:
-                            max_years = math.ceil(data['MedianDurationYearsWithIQR'].apply(lambda x: parse_iqr(x)[0]).max())
-                            time_horizon = st.slider(
-                                "Time Horizon (years)",
-                                1, max_years, st.session_state.time_horizon,
-                                key="trajectory_time_horizon",
-                                help="Maximum time period to consider"
-                            )
-                            st.session_state.time_horizon = time_horizon
-                            
-                            time_margin = st.slider(
-                                "Time Margin",
-                                0.0, 0.5, st.session_state.time_margin, 0.05,
-                                key="trajectory_time_margin",
-                                help="Allowable variation in time predictions"
-                            )
-                            st.session_state.time_margin = time_margin
+               
+                # In the Trajectory Prediction Tab section, replace the condition selection code with:
 
-                            generate_button = st.button(
-                                "🔄 Generate Network",
-                                help="Click to generate trajectory network"
-                            )
+with param_col:
+    st.markdown("### Parameters")
+    with st.container():
+        min_or = st.slider(
+            "Minimum Odds Ratio",
+            1.0, 10.0, st.session_state.min_or, 0.5,
+            key="trajectory_min_or",
+            help="Filter trajectories by minimum odds ratio"
+        )
+        st.session_state.min_or = min_or
+        
+        unique_conditions = sorted(set(data['ConditionA'].unique()) | set(data['ConditionB'].unique()))
+        
+        # Add "Select All" checkbox
+        select_all = st.checkbox("Select All Conditions", key="select_all_conditions")
+        
+        # If select_all is True, set default to all conditions, otherwise use existing selection
+        default_selection = unique_conditions if select_all else st.session_state.selected_conditions
+        
+        selected_conditions = st.multiselect(
+            "Select Initial Conditions",
+            unique_conditions,
+            default=default_selection,
+            key="trajectory_conditions",
+            help="Choose the starting conditions for trajectory analysis"
+        )
+        st.session_state.selected_conditions = selected_conditions
 
+        if selected_conditions:
+            max_years = math.ceil(data['MedianDurationYearsWithIQR'].apply(lambda x: parse_iqr(x)[0]).max())
+            time_horizon = st.slider(
+                "Time Horizon (years)",
+                1, max_years, st.session_state.time_horizon,
+                key="trajectory_time_horizon",
+                help="Maximum time period to consider"
+            )
+            st.session_state.time_horizon = time_horizon
+            
+            time_margin = st.slider(
+                "Time Margin",
+                0.0, 0.5, st.session_state.time_margin, 0.05,
+                key="trajectory_time_margin",
+                help="Allowable variation in time predictions"
+            )
+            st.session_state.time_margin = time_margin
+
+            generate_button = st.button(
+                "🔄 Generate Network",
+                help="Click to generate trajectory network"
+            )
+           
                 with viz_col:
                     # Show previous network if it exists
                     if st.session_state.network_html is not None:

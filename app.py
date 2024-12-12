@@ -855,7 +855,7 @@ def main():
                 "📈 Sensitivity Analysis",
                 "🔄 Trajectory Prediction",
                 "🔍 Condition Combinations",
-                "👤 Personalized Analysis"
+                "👤 Personalised Analysis"
             ])
 
             # Sensitivity Analysis Tab

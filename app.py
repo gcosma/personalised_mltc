@@ -17,11 +17,11 @@ from itertools import combinations
 # Disease category mappings
 condition_categories = {
    "Anaemia": "Blood",
-    "Cardiac Arrhythmias": "Circulatory   ",
-    "Coronary Heart Disease": "Circulatory   ",
-    "Heart Failure": "Circulatory   ",
-    "Hypertension": "Circulatory   ",
-    "Peripheral Vascular Disease": "Circulatory   ",
+    "Cardiac Arrhythmias": "Circulatory",
+    "Coronary Heart Disease": "Circulatory",
+    "Heart Failure": "Circulatory",
+    "Hypertension": "Circulatory",
+    "Peripheral Vascular Disease": "Circulatory",
     "Stroke": "Nervous",
     "Barretts Oesophagus": "Digestive",
     "Chronic Constipation": "Digestive",

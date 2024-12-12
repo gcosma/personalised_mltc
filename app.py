@@ -926,12 +926,13 @@ def main():
                                 file_name="sensitivity_analysis_results.csv",
                                 mime="text/csv"
                             )
+
             # Trajectory Prediction Tab
             with tabs[1]:
                 st.header("Trajectory Prediction")
                 
                 viz_col, param_col = st.columns([3, 1])
-
+                
                 with param_col:
                     st.markdown("### Parameters")
                     with st.container():
@@ -944,17 +945,10 @@ def main():
                         st.session_state.min_or = min_or
                         
                         unique_conditions = sorted(set(data['ConditionA'].unique()) | set(data['ConditionB'].unique()))
-                        
-                        # Add "Select All" checkbox
-                        select_all = st.checkbox("Select All Conditions", key="select_all_conditions")
-                        
-                        # If select_all is True, set default to all conditions, otherwise use existing selection
-                        default_selection = unique_conditions if select_all else st.session_state.selected_conditions
-                        
                         selected_conditions = st.multiselect(
                             "Select Initial Conditions",
                             unique_conditions,
-                            default=default_selection,
+                            default=st.session_state.selected_conditions,
                             key="trajectory_conditions",
                             help="Choose the starting conditions for trajectory analysis"
                         )

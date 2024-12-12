@@ -68,7 +68,7 @@ SYSTEM_COLORS = {
     "Nervous": "#FFD700",
     "Musculoskeletal": "#4682B4",
     "Genitourinary": "#DAA520",
-    "Mental health": "#8B4513",
+    "Mental": "#8B4513",
     "Mental": "#A0522D",
     "Ear": "#4169E1",
     "Eye": "#20B2AA",

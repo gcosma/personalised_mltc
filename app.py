@@ -946,6 +946,9 @@ def main():
                     st.session_state.min_or = min_or
                     
                     unique_conditions = sorted(set(data['ConditionA'].unique()) | set(data['ConditionB'].unique()))
+                    if 'trajectory_conditions' not in st.session_state:
+                        st.session_state.trajectory_conditions = []
+                        
                     selected_conditions = st.multiselect(
                         "Select Initial Conditions",
                         options=unique_conditions,
@@ -953,9 +956,9 @@ def main():
                         key="trajectory_conditions_select",
                         help="Choose the starting conditions for trajectory analysis"
                     )
-                    st.session_state.trajectory_conditions = selected_conditions
+                    if selected_conditions != st.session_state.trajectory_conditions:
+                        st.session_state.trajectory_conditions = selected_conditions.copy()
 
-                    # Always show controls, but disable them when no conditions selected
                     max_years = math.ceil(data['MedianDurationYearsWithIQR'].apply(lambda x: parse_iqr(x)[0]).max())
                     time_horizon = st.slider(
                         "Time Horizon (years)",

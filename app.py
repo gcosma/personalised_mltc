@@ -1018,115 +1018,115 @@ def main():
                             except Exception as e:
                                 st.error(f"Failed to generate network: {str(e)}")
 
+          
             # Condition Combinations Tab
-            # Condition Combinations Tab
-with tabs[2]:
-    st.header("Condition Combinations Analysis")
-    
-    # Ensure unique conditions are precomputed
-    unique_conditions = sorted(set(data['ConditionA'].unique()) | set(data['ConditionB'].unique()))
-    
-    # Ensure session state for conditions exists
-    if 'combinations_conditions' not in st.session_state:
-        st.session_state.combinations_conditions = []
-    
-    param_col, results_col = st.columns([1, 3])
-    
-    with param_col:
-        st.markdown("### Analysis Parameters")
-        
-        # Multiselect with improved session state management
-        selected_conditions = st.multiselect(
-            "Select Conditions",
-            options=unique_conditions,
-            default=st.session_state.combinations_conditions,
-            key="combinations_conditions_select",
-            help="Choose conditions for combination analysis"
-        )
-        st.session_state.combinations_conditions = selected_conditions
-        
-        min_freq_range = (data['PairFrequency'].min(), data['PairFrequency'].max())
-        min_frequency = st.slider(
-            "Minimum Pair Frequency",
-            int(min_freq_range[0]),
-            int(min_freq_range[1]),
-            int(min_freq_range[0]) if st.session_state.min_frequency is None 
-            else st.session_state.min_frequency,
-            help="Minimum number of occurrences required"
-        )
-        st.session_state.min_frequency = min_frequency
-        
-        min_percentage_range = (data['Percentage'].min(), data['Percentage'].max())
-        min_percentage = st.slider(
-            "Minimum Prevalence (%)",
-            float(min_percentage_range[0]),
-            float(min_percentage_range[1]),
-            float(min_percentage_range[0]) if st.session_state.min_percentage is None 
-            else st.session_state.min_percentage,
-            0.1,
-            help="Minimum percentage of population affected"
-        )
-        st.session_state.min_percentage = min_percentage
-
-        analyze_combinations_button = st.button(
-            "🔍 Analyze Combinations",
-            help="Click to analyze condition combinations"
-        )
-
-    with results_col:
-        # Show previous results if they exist
-        if st.session_state.combinations_results is not None:
-            results_df = st.session_state.combinations_results
-            st.subheader(f"Analysis Results ({len(results_df)} combinations)")
-            st.dataframe(
-                results_df.style.background_gradient(
-                    cmap='YlOrRd',
-                    subset=['Prevalence of the combination (%)']
-                ),
-                width=1200
-            )
-            if st.session_state.combinations_fig is not None:
-                st.pyplot(st.session_state.combinations_fig)
-            
-            csv = results_df.to_csv(index=False)
-            st.download_button(
-                label="📥 Download Results",
-                data=csv,
-                file_name="condition_combinations.csv",
-                mime="text/csv"
-            )
-        
-        if analyze_combinations_button:
-            with st.spinner("🔄 Analyzing combinations..."):
-                results_df = analyze_condition_combinations(
-                    data,
-                    min_percentage,
-                    min_frequency
-                )
+            with tabs[2]:
+                st.header("Condition Combinations Analysis")
                 
-                if not results_df.empty:
-                    st.session_state.combinations_results = results_df
-                    st.subheader(f"Analysis Results ({len(results_df)} combinations)")
-                    st.dataframe(
-                        results_df.style.background_gradient(
-                            cmap='YlOrRd',
-                            subset=['Prevalence of the combination (%)']
+                # Ensure unique conditions are precomputed
+                unique_conditions = sorted(set(data['ConditionA'].unique()) | set(data['ConditionB'].unique()))
+                
+                # Ensure session state for conditions exists
+                if 'combinations_conditions' not in st.session_state:
+                    st.session_state.combinations_conditions = []
+                
+                param_col, results_col = st.columns([1, 3])
+                
+                with param_col:
+                    st.markdown("### Analysis Parameters")
+                    
+                    # Multiselect with improved session state management
+                    selected_conditions = st.multiselect(
+                        "Select Conditions",
+                        options=unique_conditions,
+                        default=st.session_state.combinations_conditions,
+                        key="combinations_conditions_select",
+                        help="Choose conditions for combination analysis"
+                    )
+                    st.session_state.combinations_conditions = selected_conditions
+                    
+                    min_freq_range = (data['PairFrequency'].min(), data['PairFrequency'].max())
+                    min_frequency = st.slider(
+                        "Minimum Pair Frequency",
+                        int(min_freq_range[0]),
+                        int(min_freq_range[1]),
+                        int(min_freq_range[0]) if st.session_state.min_frequency is None 
+                        else st.session_state.min_frequency,
+                        help="Minimum number of occurrences required"
+                    )
+                    st.session_state.min_frequency = min_frequency
+                    
+                    min_percentage_range = (data['Percentage'].min(), data['Percentage'].max())
+                    min_percentage = st.slider(
+                        "Minimum Prevalence (%)",
+                        float(min_percentage_range[0]),
+                        float(min_percentage_range[1]),
+                        float(min_percentage_range[0]) if st.session_state.min_percentage is None 
+                        else st.session_state.min_percentage,
+                        0.1,
+                        help="Minimum percentage of population affected"
+                    )
+                    st.session_state.min_percentage = min_percentage
+            
+                    analyze_combinations_button = st.button(
+                        "🔍 Analyze Combinations",
+                        help="Click to analyze condition combinations"
+                    )
+            
+                with results_col:
+                    # Show previous results if they exist
+                    if st.session_state.combinations_results is not None:
+                        results_df = st.session_state.combinations_results
+                        st.subheader(f"Analysis Results ({len(results_df)} combinations)")
+                        st.dataframe(
+                            results_df.style.background_gradient(
+                                cmap='YlOrRd',
+                                subset=['Prevalence of the combination (%)']
+                            ),
+                            width=1200
                         )
-                    )
-
-                    fig = create_combinations_plot(results_df)
-                    st.session_state.combinations_fig = fig
-                    st.pyplot(fig)
-
-                    csv = results_df.to_csv(index=False)
-                    st.download_button(
-                        label="📥 Download Results",
-                        data=csv,
-                        file_name="condition_combinations.csv",
-                        mime="text/csv"
-                    )
-                else:
-                    st.warning("No combinations found matching the criteria.")
+                        if st.session_state.combinations_fig is not None:
+                            st.pyplot(st.session_state.combinations_fig)
+                        
+                        csv = results_df.to_csv(index=False)
+                        st.download_button(
+                            label="📥 Download Results",
+                            data=csv,
+                            file_name="condition_combinations.csv",
+                            mime="text/csv"
+                        )
+                    
+                    if analyze_combinations_button:
+                        with st.spinner("🔄 Analyzing combinations..."):
+                            results_df = analyze_condition_combinations(
+                                data,
+                                min_percentage,
+                                min_frequency
+                            )
+                            
+                            if not results_df.empty:
+                                st.session_state.combinations_results = results_df
+                                st.subheader(f"Analysis Results ({len(results_df)} combinations)")
+                                st.dataframe(
+                                    results_df.style.background_gradient(
+                                        cmap='YlOrRd',
+                                        subset=['Prevalence of the combination (%)']
+                                    )
+                                )
+            
+                                fig = create_combinations_plot(results_df)
+                                st.session_state.combinations_fig = fig
+                                st.pyplot(fig)
+            
+                                csv = results_df.to_csv(index=False)
+                                st.download_button(
+                                    label="📥 Download Results",
+                                    data=csv,
+                                    file_name="condition_combinations.csv",
+                                    mime="text/csv"
+                                )
+                            else:
+                                st.warning("No combinations found matching the criteria.")
 
             # Personalized Analysis Tab
             with tabs[3]:

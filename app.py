@@ -1,4 +1,3 @@
-# Block 1: Imports
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -8,79 +7,75 @@ from matplotlib.lines import Line2D
 import seaborn as sns
 from pyvis.network import Network
 import math
+import random
 import tempfile
+import base64
 from pathlib import Path
 from matplotlib import patches
 from itertools import combinations
-from typing import Tuple, Dict, List
-import base64
-import json
 
-plt.style.use('seaborn')
-
-# Block 2: Disease Categories and System Colors
+# Disease category mappings
 condition_categories = {
-    "Addisons Disease": "Endocrine",
-    "Anaemia": "Blood",
+   "Anaemia": "Blood",
+    "Cardiac Arrhythmias": "Circulatory",
+    "Coronary Heart Disease": "Circulatory",
+    "Heart Failure": "Circulatory",
+    "Hypertension": "Circulatory",
+    "Peripheral Vascular Disease": "Circulatory",
+    "Stroke": "Nervous",
     "Barretts Oesophagus": "Digestive",
-    "Bronchiectasis": "Respiratory",
-    "Cancer": "Neoplasms",
-    "Cardiac Arrhythmias": "Cardiovascular",
-    "Cerebral Palsy": "Nervous",
-    "Chronic Airway Diseases": "Respiratory",
-    "Chronic Arthritis": "Musculoskeletal",
     "Chronic Constipation": "Digestive",
     "Chronic Diarrhoea": "Digestive",
-    "Chronic Kidney Disease": "Genitourinary",
-    "Chronic Pain Conditions": "Musculoskeletal",
-    "Chronic Pneumonia": "Respiratory",
     "Cirrhosis": "Digestive",
-    "Coronary Heart Disease": "Cardiovascular",
-    "Dementia": "Mental health",
-    "Diabetes": "Endocrine",
     "Dysphagia": "Digestive",
-    "Epilepsy": "Nervous",
-    "Heart Failure": "Cardiovascular",
-    "Hearing Loss": "Ear",
-    "Hypertension": "Cardiovascular",
     "Inflammatory Bowel Disease": "Digestive",
-    "Insomnia": "Nervous",
-    "Interstitial Lung Disease": "Respiratory",
-    "Mental Illness": "Mental",
+    "Reflux Disorders": "Digestive",
+    "Hearing Loss": "Ear",
+    "Addisons Disease": "Endocrine",
+    "Diabetes": "Endocrine",
+    "Polycystic Ovary Syndrome": "Endocrine",
+    "Thyroid Disorders": "Endocrine",
+    "Visual Impairment": "Eye",
+    "Chronic Kidney Disease": "Genitourinary",
     "Menopausal and Perimenopausal": "Genitourinary",
+    "Dementia": "Mental",
+    "Mental Illness": "Mental",
+    "Tourette": "Mental",
+    "Chronic Arthritis": "Musculoskeletal",
+    "Chronic Pain Conditions": "Musculoskeletal",
+    "Osteoporosis": "Musculoskeletal",
+    "Cancer": "Neoplasms",
+    "Cerebral Palsy": "Nervous",
+    "Epilepsy": "Nervous",
+    "Insomnia": "Nervous",
     "Multiple Sclerosis": "Nervous",
     "Neuropathic Pain": "Nervous",
-    "Osteoporosis": "Musculoskeletal",
     "Parkinsons": "Nervous",
-    "Peripheral Vascular Disease": "Circulatory",
-    "Polycystic Ovary Syndrome": "Endocrine",
-    "Psoriasis": "Skin",
-    "Reflux Disorders": "Digestive",
-    "Stroke": "Nervous",
-    "Thyroid Disorders": "Endocrine",
-    "Tourette": "Mental health",
-    "Visual Impairment": "Eye"
+    "Bronchiectasis": "Respiratory",
+    "Chronic Airway Diseases": "Respiratory",
+    "Chronic Pneumonia": "Respiratory",
+    "Interstitial Lung Disease": "Respiratory",
+    "Psoriasis": "Skin"
 }
 
+# System colors for visualization
 SYSTEM_COLORS = {
-    "Endocrine": "#BA55D3",     # Medium Orchid
-    "Blood": "#DC143C",         # Crimson
-    "Digestive": "#32CD32",     # Lime Green
-    "Respiratory": "#48D1CC",   # Medium Turquoise
-    "Neoplasms": "#800080",     # Purple
-    "Cardiovascular": "#FF4500", # Orange Red
-    "Nervous": "#FFD700",       # Gold
-    "Musculoskeletal": "#4682B4", # Steel Blue
-    "Genitourinary": "#DAA520", # Goldenrod
-    "Mental health": "#8B4513", # Saddle Brown
-    "Mental": "#A0522D",       # Sienna
-    "Ear": "#4169E1",          # Royal Blue
-    "Eye": "#20B2AA",          # Light Sea Green
-    "Circulatory": "#FF6347",   # Tomato
-    "Skin": "#F08080"          # Light Coral
+    "Endocrine": "#BA55D3",
+    "Blood": "#DC143C",
+    "Digestive": "#32CD32", 
+    "Respiratory": "#48D1CC",
+    "Neoplasms": "#800080",
+    "Nervous": "#FFD700",
+    "Musculoskeletal": "#4682B4",
+    "Genitourinary": "#DAA520",
+    "Mental": "#8B4513",
+    "Mental": "#A0522D",
+    "Ear": "#4169E1",
+    "Eye": "#20B2AA",
+    "Circulatory": "#FF6347",
+    "Skin": "#F08080"
 }
 
-# Block 3: Helper Functions
 def parse_iqr(iqr_string):
     """Parse IQR string of format 'median [Q1-Q3]' into (median, q1, q3)"""
     try:
@@ -127,6 +122,7 @@ def perform_sensitivity_analysis(data):
     results = []
     total_patients = data['TotalPatientsInGroup'].iloc[0]
 
+    # Get top 5 patterns from full dataset first
     top_patterns = data.nlargest(5, 'OddsRatio')[
         ['ConditionA', 'ConditionB', 'OddsRatio', 'PairFrequency',
          'MedianDurationYearsWithIQR', 'DirectionalPercentage', 'Precedence']
@@ -165,6 +161,272 @@ def perform_sensitivity_analysis(data):
 
     return pd.DataFrame(results)
 
+@st.cache_data
+def create_network_graph(data, patient_conditions, min_or, time_horizon=None, time_margin=None):
+    """Create network graph for trajectory visualization with legend"""
+    # Legend HTML remains the same
+    legend_html = """
+    <div style="position: absolute; top: 10px; right: 10px; background: white; 
+                padding: 10px; border: 1px solid #ddd; border-radius: 5px; z-index: 1000;">
+        <h3 style="margin-top: 0; margin-bottom: 10px;">Legend</h3>
+        <div style="margin-bottom: 10px;">
+            <strong>Node Types:</strong><br>
+            ★ Initial Condition<br>
+            ○ Related Condition
+        </div>
+        <div>
+            <strong>Body Systems:</strong><br>
+    """
+    
+    for system, color in SYSTEM_COLORS.items():
+        legend_html += f"""
+        <div style="display: flex; align-items: center; margin: 2px 0;">
+            <div style="width: 15px; height: 15px; background-color: {color}50; 
+                 border: 1px solid {color}; margin-right: 5px;"></div>
+            <span>{system}</span>
+        </div>
+        """
+    
+    legend_html += """
+        </div>
+        <div style="margin-top: 10px;">
+            <strong>Edge Information:</strong><br>
+            • Edge thickness indicates strength of association<br>
+            • Arrow indicates typical progression direction<br>
+            • Hover over edges for detailed statistics
+        </div>
+    </div>
+    """
+
+    net = Network(height="800px", width="100%", bgcolor='white', font_color='black', directed=True)
+    
+    # Network options remain the same
+    net.set_options("""
+    {
+        "nodes": {
+            "font": {"size": 16},
+            "scaling": {"min": 10, "max": 30}
+        },
+        "edges": {
+            "color": {"inherit": false},
+            "font": {
+                "size": 12,
+                "align": "middle",
+                "multi": true,
+                "background": "rgba(255, 255, 255, 0.8)"
+            },
+            "smooth": {
+                "type": "continuous",
+                "roundness": 0.2
+            }
+        },
+        "physics": {
+            "enabled": true,
+            "barnesHut": {
+                "gravitationalConstant": -4000,
+                "centralGravity": 0.1,
+                "springLength": 250,
+                "springConstant": 0.03,
+                "damping": 0.1,
+                "avoidOverlap": 1
+            },
+            "minVelocity": 0.75,
+            "stabilization": {
+                "enabled": true,
+                "iterations": 1000,
+                "updateInterval": 25
+            }
+        }
+    }
+    """)
+    
+    # Filter data and identify connected conditions
+    filtered_data = data[data['OddsRatio'] >= min_or].copy()
+    connected_conditions = set()
+    
+    for condition_a in patient_conditions:
+        time_filtered_data = filtered_data
+        if time_horizon and time_margin:
+            time_filtered_data = filtered_data[
+                (filtered_data['ConditionA'] == condition_a) &
+                (filtered_data['MedianDurationYearsWithIQR'].apply(lambda x: parse_iqr(x)[0]) <= time_horizon * (1 + time_margin))
+            ]
+        conditions_b = set(time_filtered_data[time_filtered_data['ConditionA'] == condition_a]['ConditionB'])
+        connected_conditions.update(conditions_b)
+    
+    active_conditions = set(patient_conditions) | connected_conditions
+    active_categories = {condition_categories[cond] for cond in active_conditions if cond in condition_categories}
+
+    # Node positioning logic remains the same
+    system_conditions = {}
+    for condition in active_conditions:
+        category = condition_categories.get(condition, "Other")
+        if category not in system_conditions:
+            system_conditions[category] = []
+        system_conditions[category].append(condition)
+
+    angle_step = (2 * math.pi) / len(active_categories)
+    radius = 500
+    system_centers = {}
+
+    for i, category in enumerate(sorted(active_categories)):
+        angle = i * angle_step
+        x = radius * math.cos(angle)
+        y = radius * math.sin(angle)
+        system_centers[category] = (x, y)
+
+    # Add nodes (unchanged)
+    for category, conditions in system_conditions.items():
+        center_x, center_y = system_centers[category]
+        sub_radius = radius / (len(conditions) + 1)
+        
+        for j, condition in enumerate(conditions):
+            sub_angle = (j / len(conditions)) * (2 * math.pi)
+            node_x = center_x + sub_radius * math.cos(sub_angle)
+            node_y = center_y + sub_radius * math.sin(sub_angle)
+            
+            base_color = SYSTEM_COLORS[category]
+            
+            if condition in patient_conditions:
+                net.add_node(
+                    condition,
+                    label=f"★ {condition}",
+                    title=f"{condition}\nCategory: {category}",
+                    size=30,
+                    x=node_x,
+                    y=node_y,
+                    color={'background': f"{base_color}50", 'border': '#000000'},
+                    physics=True,
+                    fixed=False
+                )
+            else:
+                net.add_node(
+                    condition,
+                    label=condition,
+                    title=f"{condition}\nCategory: {category}",
+                    size=20,
+                    x=node_x,
+                    y=node_y,
+                    color={'background': f"{base_color}50", 'border': base_color},
+                    physics=True,
+                    fixed=False
+                )
+
+    # Modified edge addition to correctly handle precedence
+    total_patients = data['TotalPatientsInGroup'].iloc[0]
+    for condition_a in patient_conditions:
+        relevant_data = filtered_data[filtered_data['ConditionA'] == condition_a]
+        if time_horizon and time_margin:
+            relevant_data = relevant_data[
+                relevant_data['MedianDurationYearsWithIQR'].apply(lambda x: parse_iqr(x)[0]) <= time_horizon * (1 + time_margin)
+            ]
+
+        for _, row in relevant_data.iterrows():
+            condition_b = row['ConditionB']
+            if condition_b not in patient_conditions:
+                edge_width = max(1, min(8, math.log2(row['OddsRatio'] + 1)))
+                prevalence = (row['PairFrequency'] / total_patients) * 100
+
+                # Determine direction based on the Precedence field
+                if "precedes" in row['Precedence']:
+                    parts = row['Precedence'].split(" precedes ")
+                    source = parts[0]
+                    target = parts[1]
+                    directional_percentage = row['DirectionalPercentage']
+                else:
+                    # Fallback if precedence format is unexpected
+                    source = condition_a
+                    target = condition_b
+                    directional_percentage = row['DirectionalPercentage']
+
+                edge_label = (f"OR: {row['OddsRatio']:.1f}\n"
+                            f"Years: {row['MedianDurationYearsWithIQR']}\n"
+                            f"n={row['PairFrequency']} ({prevalence:.1f}%)\n"
+                            f"Proceeds: {directional_percentage:.1f}%")
+
+                net.add_edge(
+                    source,
+                    target,
+                    label=edge_label,
+                    title=edge_label,
+                    width=edge_width,
+                    arrows={'to': {'enabled': True, 'scaleFactor': 1}},
+                    color={'color': 'rgba(128,128,128,0.7)', 'highlight': 'black'},
+                    smooth={'type': 'curvedCW', 'roundness': 0.2}
+                )
+
+    # Generate final HTML with legend
+    network_html = net.generate_html()
+    final_html = network_html.replace('</body>', f'{legend_html}</body>')
+    
+    return final_html
+
+@st.cache_data
+def analyze_condition_combinations(data, min_percentage, min_frequency):
+    """Analyze combinations of conditions"""
+    total_patients = data['TotalPatientsInGroup'].iloc[0]
+
+    filtered_data = data[
+        (data['Percentage'] >= min_percentage) &
+        (data['PairFrequency'] >= min_frequency)
+    ].copy()
+
+    # Clean condition names
+    for col in ['ConditionA', 'ConditionB']:
+        filtered_data[col] = (filtered_data[col]
+                            .str.replace(r'\s*\([^)]*\)', '', regex=True)
+                            .str.replace('_', ' '))
+
+    unique_conditions = pd.unique(filtered_data[['ConditionA', 'ConditionB']].values.ravel('K'))
+    
+    # Calculate frequencies
+    pair_frequency_map = {}
+    condition_frequency_map = {}
+    
+    for _, row in filtered_data.iterrows():
+        for key in [f"{row['ConditionA']}_{row['ConditionB']}", 
+                   f"{row['ConditionB']}_{row['ConditionA']}"]:
+            pair_frequency_map[key] = row['PairFrequency']
+        
+        for condition in [row['ConditionA'], row['ConditionB']]:
+            condition_frequency_map[condition] = (
+                condition_frequency_map.get(condition, 0) + row['PairFrequency']
+            )
+
+    # Analyze combinations
+    result_data = []
+    for k in range(3, min(8, len(unique_conditions) + 1)):
+        for comb in combinations(unique_conditions, k):
+            pair_frequencies = [
+                pair_frequency_map.get(f"{a}_{b}", 0) 
+                for a, b in combinations(comb, 2)
+            ]
+            
+            frequency = min(pair_frequencies)
+            prevalence = (frequency / total_patients) * 100
+            
+            # Calculate odds ratio
+            observed = frequency
+            expected = total_patients
+            for condition in comb:
+                expected *= (condition_frequency_map[condition] / total_patients)
+            
+            odds_ratio = observed / expected if expected != 0 else float('inf')
+            
+            result_data.append({
+                'Combination': ' + '.join(comb),
+                'NumConditions': len(comb),
+                'Minimum Pair Frequency': frequency,
+                'Prevalence of the combination (%)': prevalence,
+                'Total odds ratio': odds_ratio
+            })
+
+    results_df = pd.DataFrame(result_data)
+    results_df = (results_df[results_df['Prevalence of the combination (%)'] > 0]
+                 .sort_values('Prevalence of the combination (%)', ascending=False))
+    
+    return results_df
+
 def create_sensitivity_plot(results):
     """Create the sensitivity analysis visualization"""
     fig, ax1 = plt.subplots(figsize=(12, 6))
@@ -173,17 +435,21 @@ def create_sensitivity_plot(results):
     x_vals = results['OR_Threshold'].values
     bar_heights = results['Num_Trajectories']
 
+    # Plot bars and lines
     bars = ax1.bar(x_vals, bar_heights, alpha=0.3, color='navy')
     line = ax2.plot(x_vals, results['Coverage_Percent'], 'r-o', linewidth=2)
 
+    # Add scatter plot with variable sizes
     sizes = (results['System_Pairs'] / results['System_Pairs'].max()) * 500
     scatter = ax2.scatter(x_vals, results['Coverage_Percent'], s=sizes, alpha=0.5, color='darkred')
 
+    # Add text annotations
     for i, row in results.iterrows():
         ax1.text(row['OR_Threshold'], bar_heights[i] * 0.5,
                 f"Median: {row['Median_Duration']:.1f}y\nIQR: [{row['Q1_Duration']:.1f}-{row['Q3_Duration']:.1f}]",
                 ha='center', va='center', fontsize=10)
 
+    # Labels and legend
     ax1.set_xlabel('Minimum Odds Ratio Threshold')
     ax1.set_ylabel('Number of Disease Trajectories')
     ax2.set_ylabel('Population Coverage (%)')
@@ -191,7 +457,7 @@ def create_sensitivity_plot(results):
     legend_elements = [
         patches.Patch(facecolor='navy', alpha=0.3, label='Number of Trajectories'),
         Line2D([0], [0], color='r', marker='o', label='Population Coverage %'),
-        Line2D([0], [0], marker='o', color='darkred', alpha=0.5,
+        Line2D([0], [0], marker='o', color='darkred', alpha=0.5, 
                label='System Pairs', markersize=10, linestyle='None')
     ]
     ax1.legend(handles=legend_elements, loc='upper right')
@@ -200,29 +466,37 @@ def create_sensitivity_plot(results):
     plt.tight_layout()
     return fig
 
-@st.cache_data
-def create_network_graph(data, patient_conditions, min_or, time_horizon=None, time_margin=None):
-    """Create network graph for trajectory visualization with legend"""
-    # [Previous network graph function code remains exactly the same]
-    # For brevity, I'm not repeating it here since it hasn't changed
-
-@st.cache_data
-def analyze_condition_combinations(data, min_percentage, min_frequency):
-    """Analyze combinations of conditions"""
-    # [Previous combinations analysis function code remains exactly the same]
-    # For brevity, I'm not repeating it here since it hasn't changed
-
 def create_combinations_plot(results_df):
     """Create the combinations analysis visualization"""
-    # [Previous combinations plot function code remains exactly the same]
-    # For brevity, I'm not repeating it here since it hasn't changed
+    fig, ax = plt.subplots(figsize=(12, 6))
+    
+    top_10 = results_df.nlargest(10, 'Prevalence of the combination (%)')
+    bars = ax.bar(range(len(top_10)), top_10['Prevalence of the combination (%)'])
+    
+    # Customize the plot
+    ax.set_xticks(range(len(top_10)))
+    ax.set_xticklabels(top_10['Combination'], rotation=45, ha='right')
+    ax.set_title('Top 10 Condition Combinations by Prevalence')
+    ax.set_xlabel('Condition Combinations')
+    ax.set_ylabel('Prevalence (%)')
+    
+    # Add value labels on top of bars
+    for i, bar in enumerate(bars):
+        height = bar.get_height()
+        ax.text(bar.get_x() + bar.get_width()/2., height,
+                f'{height:.1f}%',
+                ha='center', va='bottom')
+    
+    plt.tight_layout()
+    return fig
 
-def create_personalized_analysis_html(data: pd.DataFrame, patient_conditions: List[str],
-                                    total_patients: int, time_horizon: float = None,
-                                    time_margin: float = None, min_or: float = 2.0) -> str:
-    """Create HTML for personalized trajectory analysis"""
+# Add this function near the other functions, before main():
+def create_personalized_analysis(data, patient_conditions, time_horizon=None, time_margin=None, min_or=2.0):
+    """Create a personalized analysis of disease trajectories for a patient's conditions"""
+    filtered_data = data[data['OddsRatio'] >= min_or].copy()
+    total_patients = data['TotalPatientsInGroup'].iloc[0]
 
-    def get_risk_level(odds_ratio: float) -> Tuple[str, str]:
+    def get_risk_level(odds_ratio):
         if odds_ratio >= 5:
             return "High", "#dc3545"
         elif odds_ratio >= 3:
@@ -230,22 +504,21 @@ def create_personalized_analysis_html(data: pd.DataFrame, patient_conditions: Li
         else:
             return "Low", "#28a745"
 
-    filtered_data = data[data['OddsRatio'] >= min_or].copy()
-
     html = """
     <style>
         .patient-analysis {
-            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-            max-width: 1200px;
-            margin: 20px auto;
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont;
+            margin: 20px 0;
+            width: 100%;
+            max-width: 100%;
         }
         .condition-section {
             margin-bottom: 30px;
             border: 1px solid #ddd;
             border-radius: 8px;
             padding: 20px;
-            background-color: #ffffff;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            background-color: #f8f9fa;
+            width: 100%;
         }
         .condition-header {
             font-size: 1.2em;
@@ -259,16 +532,19 @@ def create_personalized_analysis_html(data: pd.DataFrame, patient_conditions: Li
             border-collapse: collapse;
             margin: 10px 0;
             background-color: white;
+            font-size: 14px;
         }
         .trajectory-table th {
             background-color: #f5f5f5;
             padding: 12px;
             text-align: left;
             border: 1px solid #ddd;
+            white-space: nowrap;
         }
         .trajectory-table td {
             padding: 10px;
             border: 1px solid #ddd;
+            vertical-align: top;
         }
         .risk-badge {
             padding: 4px 8px;
@@ -288,13 +564,49 @@ def create_personalized_analysis_html(data: pd.DataFrame, patient_conditions: Li
             font-style: italic;
             color: #666;
         }
+        .progression-arrow {
+            color: #4a5568;
+            font-weight: bold;
+        }
+        .percentage {
+            color: #2d3748;
+            font-weight: bold;
+        }
+        @media (max-width: 1200px) {
+            .trajectory-table {
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+        }
+        .analysis-container {
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .summary-section {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid #e2e8f0;
+        }
     </style>
     <div class="patient-analysis">
-        <h2>Personalized Disease Trajectory Analysis</h2>
-        <p>Based on current conditions: """ + ", ".join(patient_conditions) + "</p>"
+        <div class="analysis-container">
+            <h2>Personalized Disease Trajectory Analysis</h2>
+            <div class="summary-section">
+                <h3>Current Conditions:</h3>
+                <p>""" + ", ".join(f"<span class='system-tag'>{condition_categories.get(cond, 'Other')}</span> {cond}" for cond in patient_conditions) + """</p>
+            </div>
+    """
 
     for condition_a in patient_conditions:
-        time_filtered_data = filtered_data[filtered_data['ConditionA'] == condition_a]
+        time_filtered_data = filtered_data[
+            (filtered_data['ConditionA'] == condition_a) | 
+            (filtered_data['ConditionB'] == condition_a)
+        ]
+        
         if time_horizon and time_margin:
             time_filtered_data = time_filtered_data[
                 time_filtered_data['MedianDurationYearsWithIQR'].apply(
@@ -323,25 +635,46 @@ def create_personalized_analysis_html(data: pd.DataFrame, patient_conditions: Li
             """
 
             for _, row in time_filtered_data.sort_values('OddsRatio', ascending=False).iterrows():
-                condition_b = row['ConditionB']
-                if condition_b not in patient_conditions:
-                    system_b = condition_categories.get(condition_b, 'Other')
+                if row['ConditionA'] == condition_a:
+                    other_condition = row['ConditionB']
+                    direction_percentage = row['DirectionalPercentage']
+                else:
+                    other_condition = row['ConditionA']
+                    direction_percentage = 100 - row['DirectionalPercentage']
+
+                if other_condition not in patient_conditions:
+                    system_b = condition_categories.get(other_condition, 'Other')
                     median, q1, q3 = parse_iqr(row['MedianDurationYearsWithIQR'])
                     prevalence = (row['PairFrequency'] / total_patients) * 100
                     risk_level, color = get_risk_level(row['OddsRatio'])
 
-                    if row['DirectionalPercentage'] >= 50:
-                        direction = f"{condition_a} → {condition_b}"
-                        confidence = row['DirectionalPercentage']
+                    # Parse precedence to determine direction
+                    if "precedes" in row['Precedence']:
+                        parts = row['Precedence'].split(" precedes ")
+                        first_condition = parts[0]
+                        second_condition = parts[1]
+                        direction = f"{first_condition} <span class='progression-arrow'>→</span> {second_condition}"
+                        if first_condition == row['ConditionA']:
+                            percentage = row['DirectionalPercentage']
+                        else:
+                            percentage = 100 - row['DirectionalPercentage']
+                        
+                        progression_text = f"""
+                            {direction}<br>
+                            <span class='percentage'>{percentage:.1f}%</span> of cases follow this pattern
+                        """
                     else:
-                        direction = f"{condition_b} → {condition_a}"
-                        confidence = 100 - row['DirectionalPercentage']
+                        direction = f"{condition_a} <span class='progression-arrow'>→</span> {other_condition}"
+                        progression_text = f"""
+                            {direction}<br>
+                            <span class='percentage'>{direction_percentage:.1f}%</span> of cases follow this pattern
+                        """
 
                     html += f"""
                         <tr>
                             <td><span class="risk-badge" style="background-color: {color}">{risk_level}</span></td>
                             <td>
-                                <strong>{condition_b}</strong><br>
+                                <strong>{other_condition}</strong><br>
                                 <span class="system-tag">{system_b}</span>
                             </td>
                             <td class="timeline-indicator">
@@ -353,8 +686,7 @@ def create_personalized_analysis_html(data: pd.DataFrame, patient_conditions: Li
                                 {row['PairFrequency']} cases ({prevalence:.1f}%)
                             </td>
                             <td>
-                                {confidence:.1f}% confidence in progression order<br>
-                                {direction}
+                                {progression_text}
                             </td>
                         </tr>
                     """
@@ -366,20 +698,47 @@ def create_personalized_analysis_html(data: pd.DataFrame, patient_conditions: Li
             """
 
     html += """
-        <div style="margin-top: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 8px;">
-            <h4>Understanding This Analysis:</h4>
-            <ul>
-                <li><strong>Risk Level:</strong> Based on odds ratio strength (High: OR≥5, Moderate: OR≥3, Low: OR≥2)</li>
-                <li><strong>Expected Timeline:</strong> Median years and range between which progression typically occurs</li>
-                <li><strong>Statistical Support:</strong> Odds ratio and number of observed cases in the population</li>
-                <li><strong>Progression Details:</strong> Confidence in the order of disease progression</li>
-            </ul>
+            <div class="summary-section">
+                <h4>Understanding This Analysis:</h4>
+                <ul>
+                    <li><strong>Risk Level:</strong> Based on odds ratio strength (High: OR≥5, Moderate: OR≥3, Low: OR≥2)</li>
+                    <li><strong>Expected Timeline:</strong> Median years and range between which progression typically occurs</li>
+                    <li><strong>Statistical Support:</strong> Odds ratio and number of observed cases in the population</li>
+                    <li><strong>Progression Details:</strong> Direction of progression and percentage of cases that follow this pattern</li>
+                </ul>
+            </div>
         </div>
     </div>
     """
 
     return html
 
+# Add these imports at the top with your other imports
+def check_password():
+    """Returns `True` if the user had the correct password."""
+    def password_entered():
+        """Checks whether a password entered by the user is correct."""
+        if st.session_state["password"] == st.secrets["password"]:
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  # Don't store password
+        else:
+            st.session_state["password_correct"] = False
+
+    # First run or password not correct
+    if "password_correct" not in st.session_state:
+        # Show input for password
+        st.text_input(
+            "Please enter the password", 
+            type="password", 
+            key="password",
+            on_change=password_entered
+        )
+        return False
+    
+    # Password correct
+    elif st.session_state["password_correct"]:
+        return True
+        
 def main():
     """Main function to run the Streamlit application"""
     # Page configuration
@@ -464,62 +823,15 @@ def main():
             - Age Group: {age_group}
             """)
 
-            # Create tabs
+            # Create tabs - Removed "📈 Sensitivity Analysis"
             tabs = st.tabs([
-                "📈 Sensitivity Analysis",
                 "🔄 Trajectory Prediction",
                 "📋 Personalized Analysis",
                 "🔍 Condition Combinations"
             ])
 
-            # Sensitivity Analysis Tab
+            # Trajectory Prediction Tab - Now index 0
             with tabs[0]:
-                st.header("Sensitivity Analysis")
-                st.markdown("""
-                Explore how different odds ratio thresholds affect the number of disease
-                trajectories and population coverage.
-                """)
-
-                analysis_col1, analysis_col2 = st.columns([3, 1])
-
-                with analysis_col2:
-                    st.markdown("### Control Panel")
-                    analyze_button = st.button(
-                        "🚀 Run Analysis",
-                        key="run_sensitivity",
-                        help="Click to perform sensitivity analysis"
-                    )
-
-                with analysis_col1:
-                    if analyze_button:
-                        with st.spinner("💫 Analyzing data..."):
-                            results = perform_sensitivity_analysis(data)
-
-                            st.subheader("Analysis Results")
-                            display_df = results.drop('Top_Patterns', axis=1)
-                            st.dataframe(
-                                display_df.style.background_gradient(cmap='YlOrRd', subset=['Coverage_Percent'])
-                            )
-
-                            st.subheader("Top 5 Strongest Trajectories")
-                            patterns_df = pd.DataFrame(results.iloc[0]['Top_Patterns'])
-                            st.dataframe(
-                                patterns_df.style.background_gradient(cmap='YlOrRd', subset=['OddsRatio'])
-                            )
-
-                            fig = create_sensitivity_plot(results)
-                            st.pyplot(fig)
-
-                            csv = display_df.to_csv(index=False)
-                            st.download_button(
-                                label="📥 Download Results",
-                                data=csv,
-                                file_name="sensitivity_analysis_results.csv",
-                                mime="text/csv"
-                            )
-
-            # Trajectory Prediction Tab
-            with tabs[1]:
                 st.header("Trajectory Prediction")
                 viz_col, param_col = st.columns([3, 1])
 
@@ -579,8 +891,8 @@ def main():
                             except Exception as e:
                                 st.error(f"Failed to generate network: {str(e)}")
 
-            # Personalized Analysis Tab
-            with tabs[2]:
+            # Personalized Analysis Tab - Now index 1
+            with tabs[1]:
                 st.header("Personalized Trajectory Analysis")
                 st.markdown("""
                 This analysis provides a detailed view of potential disease progressions based on
@@ -646,8 +958,8 @@ def main():
                                 mime="text/html"
                             )
 
-            # Condition Combinations Tab
-            with tabs[3]:
+            # Condition Combinations Tab - Now index 2
+            with tabs[2]:
                 st.header("Condition Combinations Analysis")
                 param_col, results_col = st.columns([1, 3])
 

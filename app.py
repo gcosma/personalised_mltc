@@ -995,7 +995,8 @@ def main():
                             label="📥 Download Network",
                             data=st.session_state.network_html,
                             file_name="trajectory_network.html",
-                            mime="text/html"
+                            mime="text/html",
+                            key="download_trajectory_network"  # Add a unique key
                         )
                     
                     if selected_conditions and generate_button:
@@ -1187,7 +1188,8 @@ def main():
                         label="📥 Download Analysis",
                         data=st.session_state.personalized_html,
                         file_name="personalized_trajectory_analysis.html",
-                        mime="text/html"
+                        mime="text/html",
+                        key="download_personalized_analysis"  # Add a unique key
                     )
 
                 # Analysis results
@@ -1305,7 +1307,8 @@ def main():
                                     label="📥 Download Network",
                                     data=html_content,
                                     file_name="custom_trajectory_network.html",
-                                    mime="text/html"
+                                    mime="text/html",
+                                    key="download_custom_network"  # Add a unique key
                                 )
                             except Exception as e:
                                 st.error(f"Failed to generate network: {str(e)}")

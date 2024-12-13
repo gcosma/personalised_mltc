@@ -1056,7 +1056,8 @@ def main():
                             results_df.style.background_gradient(
                                 cmap='YlOrRd',
                                 subset=['Prevalence of the combination (%)']
-                            )
+                            ),
+                            width=1200  # Add this line
                         )
                         if st.session_state.combinations_fig is not None:
                             st.pyplot(st.session_state.combinations_fig)

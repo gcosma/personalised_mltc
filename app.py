@@ -1128,7 +1128,7 @@ with tabs[2]:
                 else:
                     st.warning("No combinations found matching the criteria.")
 
-            # Personalized Analysis Tab
+# Personalized Analysis Tab
             with tabs[3]:
                 st.header("Personalized Trajectory Analysis")
                 st.markdown("""

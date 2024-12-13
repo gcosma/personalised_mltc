@@ -1289,26 +1289,33 @@ def main():
                             help="Click to generate trajectory network"
                         )
 
+                # In the Trajectory Prediction Tab (and similar in other tabs)
                 with viz_col:
+                    # Create a placeholder for the network visualization
+                    network_placeholder = st.empty()
+                    
+                    # Modify the generate button logic
                     if selected_conditions and generate_button:
                         with st.spinner("🌐 Generating network..."):
                             try:
-                                # Use filtered data instead of original data
                                 html_content = create_network_graph(
-                                    filtered_data,  # Use filtered data here
+                                    data,
                                     selected_conditions,
                                     min_or,
                                     time_horizon,
                                     time_margin
                                 )
-                                st.components.v1.html(html_content, height=800)
+                                st.session_state.network_html = html_content
                                 
+                                # Replace the content in the placeholder
+                                network_placeholder.components.v1.html(html_content, height=800)
+                                
+                                # Single download button
                                 st.download_button(
                                     label="📥 Download Network",
                                     data=html_content,
-                                    file_name="custom_trajectory_network.html",
-                                    mime="text/html",
-                                    key="download_custom_network"  # Add a unique key
+                                    file_name="trajectory_network.html",
+                                    mime="text/html"
                                 )
                             except Exception as e:
                                 st.error(f"Failed to generate network: {str(e)}")

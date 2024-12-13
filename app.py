@@ -763,6 +763,10 @@ def main():
         st.session_state.min_frequency = None
     if 'min_percentage' not in st.session_state:
         st.session_state.min_percentage = None
+    if 'unique_conditions' not in st.session_state:
+        st.session_state.unique_conditions = []
+    if 'data_hash' not in st.session_state:
+        st.session_state.data_hash = None
 
     # Page configuration
     st.set_page_config(
@@ -855,7 +859,8 @@ def main():
                 "📈 Sensitivity Analysis",
                 "🔄 Trajectory Prediction",
                 "🔍 Condition Combinations",
-                "👤 Personalised Analysis"
+                "👤 Personalised Analysis",
+                "🎯 Custom Trajectory Filter"
             ])
 
             # Sensitivity Analysis Tab
@@ -935,48 +940,53 @@ def main():
                 
                 with param_col:
                     st.markdown("### Parameters")
-                    with st.container():
-                        min_or = st.slider(
-                            "Minimum Odds Ratio",
-                            1.0, 10.0, st.session_state.min_or, 0.5,
-                            key="trajectory_min_or",
-                            help="Filter trajectories by minimum odds ratio"
+                    min_or = st.slider(
+                        "Minimum Odds Ratio",
+                        1.0, 10.0, st.session_state.min_or, 0.5,
+                        key="trajectory_min_or",
+                        help="Filter trajectories by minimum odds ratio"
+                    )
+                    st.session_state.min_or = min_or
+                    
+                    # Only update conditions list if data has changed
+                    if data is not None:
+                        current_hash = hash(str(data.shape) + str(data.index[0]) + str(data.index[-1]))
+                        if current_hash != st.session_state.data_hash:
+                            st.session_state.unique_conditions = sorted(set(data['ConditionA'].unique()) | set(data['ConditionB'].unique()))
+                            st.session_state.data_hash = current_hash
+                    
+                    selected_conditions = st.multiselect(
+                        "Select Initial Conditions",
+                        options=st.session_state.unique_conditions,
+                        default=st.session_state.selected_conditions,
+                        key="trajectory_select",
+                        help="Choose the starting conditions for trajectory analysis"
+                    )
+                    st.session_state.selected_conditions = selected_conditions
+        
+                    if selected_conditions:
+                        max_years = math.ceil(data['MedianDurationYearsWithIQR'].apply(lambda x: parse_iqr(x)[0]).max())
+                        time_horizon = st.slider(
+                            "Time Horizon (years)",
+                            1, max_years, st.session_state.time_horizon,
+                            key="trajectory_time_horizon",
+                            help="Maximum time period to consider"
                         )
-                        st.session_state.min_or = min_or
+                        st.session_state.time_horizon = time_horizon
                         
-                        unique_conditions = sorted(set(data['ConditionA'].unique()) | set(data['ConditionB'].unique()))
-                        selected_conditions = st.multiselect(
-                            "Select Initial Conditions",
-                            unique_conditions,
-                            default=st.session_state.selected_conditions,
-                            key="trajectory_conditions",
-                            help="Choose the starting conditions for trajectory analysis"
+                        time_margin = st.slider(
+                            "Time Margin",
+                            0.0, 0.5, st.session_state.time_margin, 0.05,
+                            key="trajectory_time_margin",
+                            help="Allowable variation in time predictions"
                         )
-                        st.session_state.selected_conditions = selected_conditions
-
-                        if selected_conditions:
-                            max_years = math.ceil(data['MedianDurationYearsWithIQR'].apply(lambda x: parse_iqr(x)[0]).max())
-                            time_horizon = st.slider(
-                                "Time Horizon (years)",
-                                1, max_years, st.session_state.time_horizon,
-                                key="trajectory_time_horizon",
-                                help="Maximum time period to consider"
-                            )
-                            st.session_state.time_horizon = time_horizon
-                            
-                            time_margin = st.slider(
-                                "Time Margin",
-                                0.0, 0.5, st.session_state.time_margin, 0.05,
-                                key="trajectory_time_margin",
-                                help="Allowable variation in time predictions"
-                            )
-                            st.session_state.time_margin = time_margin
-
-                            generate_button = st.button(
-                                "🔄 Generate Network",
-                                help="Click to generate trajectory network"
-                            )
-
+                        st.session_state.time_margin = time_margin
+        
+                        generate_button = st.button(
+                            "🔄 Generate Network",
+                            help="Click to generate trajectory network"
+                        )
+                
                 with viz_col:
                     # Show previous network if it exists
                     if st.session_state.network_html is not None:
@@ -987,7 +997,7 @@ def main():
                             file_name="trajectory_network.html",
                             mime="text/html"
                         )
-                        
+                    
                     if selected_conditions and generate_button:
                         with st.spinner("🌐 Generating network..."):
                             try:
@@ -1056,7 +1066,8 @@ def main():
                             results_df.style.background_gradient(
                                 cmap='YlOrRd',
                                 subset=['Prevalence of the combination (%)']
-                            )
+                            ),
+                            width=1200
                         )
                         if st.session_state.combinations_fig is not None:
                             st.pyplot(st.session_state.combinations_fig)
@@ -1101,6 +1112,7 @@ def main():
                             else:
                                 st.warning("No combinations found matching the criteria.")
 
+            # Personalized Analysis Tab
             # Personalized Analysis Tab
             with tabs[3]:
                 st.header("Personalized Trajectory Analysis")
@@ -1157,7 +1169,7 @@ def main():
                     "Select Current Conditions",
                     unique_conditions,
                     default=st.session_state.selected_conditions,
-                    key="personal_conditions",
+                    key="personal_select",
                     help="Choose the patient's current conditions"
                 )
                 st.session_state.selected_conditions = selected_conditions
@@ -1197,7 +1209,6 @@ def main():
                         </div>
                         """
                         st.components.v1.html(html_container, height=1200, scrolling=True)
-                        
                         st.download_button(
                             label="📥 Download Analysis",
                             data=html_content,
@@ -1205,6 +1216,100 @@ def main():
                             mime="text/html"
                         )
 
+            # Custom Trajectory Filter Tab
+            with tabs[4]:
+                st.header("Custom Trajectory Filter")
+                st.markdown("""
+                Visualize disease trajectories based on custom odds ratio and frequency thresholds.
+                Select conditions and adjust filters to explore different trajectory patterns.
+                """)
+                
+                viz_col, param_col = st.columns([3, 1])
+                
+                with param_col:
+                    st.markdown("### Parameters")
+                    min_or = st.slider(
+                        "Minimum Odds Ratio",
+                        1.0, 10.0, st.session_state.min_or, 0.5,
+                        key="custom_min_or",
+                        help="Filter trajectories by minimum odds ratio"
+                    )
+                    
+                    min_freq = st.slider(
+                        "Minimum Frequency",
+                        int(data['PairFrequency'].min()),
+                        int(data['PairFrequency'].max()),
+                        int(data['PairFrequency'].min()),
+                        help="Minimum number of occurrences required"
+                    )
+                    
+                    # Filter data based on both OR and frequency
+                    filtered_data = data[
+                        (data['OddsRatio'] >= min_or) & 
+                        (data['PairFrequency'] >= min_freq)
+                    ]
+                    
+                    # Get conditions from filtered data
+                    unique_conditions = sorted(set(
+                        filtered_data['ConditionA'].unique()) | 
+                        set(filtered_data['ConditionB'].unique())
+                    )
+                    
+                    selected_conditions = st.multiselect(
+                        "Select Initial Conditions",
+                        unique_conditions,
+                        default=st.session_state.selected_conditions,
+                        key="custom_select",
+                        help="Choose the starting conditions for trajectory analysis"
+                    )
+                    st.session_state.selected_conditions = selected_conditions
+
+                    if selected_conditions:
+                        max_years = math.ceil(filtered_data['MedianDurationYearsWithIQR']
+                                            .apply(lambda x: parse_iqr(x)[0]).max())
+                        time_horizon = st.slider(
+                            "Time Horizon (years)",
+                            1, max_years, st.session_state.time_horizon,
+                            key="custom_time_horizon",
+                            help="Maximum time period to consider"
+                        )
+                        
+                        time_margin = st.slider(
+                            "Time Margin",
+                            0.0, 0.5, st.session_state.time_margin, 0.05,
+                            key="custom_time_margin",
+                            help="Allowable variation in time predictions"
+                        )
+
+                        generate_button = st.button(
+                            "🔄 Generate Network",
+                            key="custom_generate",
+                            help="Click to generate trajectory network"
+                        )
+
+                with viz_col:
+                    if selected_conditions and generate_button:
+                        with st.spinner("🌐 Generating network..."):
+                            try:
+                                # Use filtered data instead of original data
+                                html_content = create_network_graph(
+                                    filtered_data,  # Use filtered data here
+                                    selected_conditions,
+                                    min_or,
+                                    time_horizon,
+                                    time_margin
+                                )
+                                st.components.v1.html(html_content, height=800)
+                                
+                                st.download_button(
+                                    label="📥 Download Network",
+                                    data=html_content,
+                                    file_name="custom_trajectory_network.html",
+                                    mime="text/html"
+                                )
+                            except Exception as e:
+                                st.error(f"Failed to generate network: {str(e)}")
+
+
 if __name__ == "__main__":
     main()
-                        

@@ -754,12 +754,13 @@ def check_password():
     # Password correct
     elif st.session_state["password_correct"]:
         return True
+        
 def add_footer():
     st.markdown(
         """
         <div class="footer">
             <div class="footer-copyright">
-                <p>© 2024 DECODE Project. Loughborough University. Funded by the National Institute for Health and Care Research (NIHR). </p>
+                <p>© 2024 DECODE Project. Loughborough University. Funded by the National Institute for Health and Care Research (NIHR). Website: <a href="http://www.example.com">Link text</a> </p>
             </div>
         </div>
         """,
@@ -798,7 +799,7 @@ def main():
 
     # Page configuration
     st.set_page_config(
-        page_title="Multimorbidity Analysis Tool",
+        page_title="DECODE Project: A Multimorbidity Analysis Tool",
         layout="wide",
         initial_sidebar_state="expanded"
     )
@@ -1223,6 +1224,7 @@ def main():
                             )
 
                 # Custom Trajectory Filter Tab
+                # Custom Trajectory Filter Tab
                 with tabs[3]:
                     st.header("Custom Trajectory Filter")
                     st.markdown("""
@@ -1337,6 +1339,9 @@ def main():
                                 file_name="custom_trajectory_network.html",
                                 mime="text/html"
                             )
+                            
+                            
+                
             
             except Exception as e:
                 st.error(f"Error processing data: {str(e)}")

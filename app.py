@@ -760,7 +760,7 @@ def add_footer():
         """
         <div class="footer">
             <div class="footer-copyright">
-                <p>© 2024 DECODE Project. Loughborough University. Funded by the National Institute for Health and Care Research (NIHR). <a href="https://decode-project.org/research/"> DECODE Project Website: </a> </p>
+                <p>© 2024 DECODE Project. Loughborough University. Funded by the National Institute for Health and Care Research (NIHR). <a href="https://decode-project.org/research/"> DECODE Project Website </a> </p>
             </div>
         </div>
         """,

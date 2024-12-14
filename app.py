@@ -760,7 +760,7 @@ def add_footer():
         """
         <div class="footer">
             <div class="footer-copyright">
-                <p>© 2024 DECODE Project. Loughborough University. Funded by the National Institute for Health and Care Research (NIHR). Website: <a href="http://www.example.com">Link text</a> </p>
+                <p>© 2024 DECODE Project. Loughborough University. Funded by the National Institute for Health and Care Research (NIHR). <a href="https://decode-project.org/research/"> DECODE Project Website: </a> </p>
             </div>
         </div>
         """,
@@ -799,7 +799,7 @@ def main():
 
     # Page configuration
     st.set_page_config(
-        page_title="DECODE Project: A Multimorbidity Analysis Tool",
+        page_title="DECODE Project: Multimorbidity Analysis Tool for people with intellectual disabilities and multiple long term Conditions",
         layout="wide",
         initial_sidebar_state="expanded"
     )
@@ -856,7 +856,7 @@ def main():
     """, unsafe_allow_html=True)
 
     # Header
-    st.title("🏥 Multimorbidity Analysis Tool")
+    st.title("🏥 DECODE PROJECT -  Analysis Tool")
     st.markdown("""
     This tool helps analyse disease trajectories and comorbidity patterns in patient data.
     Upload your data file to begin analysis.

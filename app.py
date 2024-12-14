@@ -799,7 +799,7 @@ def main():
 
     # Page configuration
     st.set_page_config(
-        page_title="DECODE Project: Multimorbidity Analysis Tool for people with intellectual disabilities and multiple long term Conditions",
+        page_title="DECODE Project: Multimorbidity Analysis Tool for people with ID and MLTC",
         layout="wide",
         initial_sidebar_state="expanded"
     )
@@ -856,7 +856,7 @@ def main():
     """, unsafe_allow_html=True)
 
     # Header
-    st.title("🏥 DECODE PROJECT -  Analysis Tool")
+    st.title("🏥 DECODE Project: Multimorbidity Analysis Tool for people with intellectual disabilities and multiple long term Conditions")
     st.markdown("""
     This tool helps analyse disease trajectories and comorbidity patterns in patient data.
     Upload your data file to begin analysis.

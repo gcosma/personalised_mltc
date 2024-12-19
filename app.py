@@ -907,7 +907,7 @@ def main():
                     "📈 Sensitivity Analysis",
                     "🔍 Condition Combinations",
                     "👤 Personalised Analysis",
-                    "🎯 Custom Trajectory Filter"
+                    "🎯 Personalised Trajectory Filter"
                 ])
 
                 # Sensitivity Analysis Tab

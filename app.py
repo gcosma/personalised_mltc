@@ -134,7 +134,7 @@ def load_and_process_data(uploaded_file):
 @st.cache_data
 def perform_sensitivity_analysis(data, top_n=5):
     """Perform sensitivity analysis with configurable number of top trajectories"""
-    or_thresholds = [2.0, 3.0, 4.0, 5.0]
+    or_thresholds = [2.0, 3.0, 4.0, 5.0, 6.0, 7.0]
     results = []
     total_patients = data['TotalPatientsInGroup'].iloc[0]
 

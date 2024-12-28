@@ -89,9 +89,7 @@ SYSTEM_COLORS = {
     "Ear": "#4169E1",
     "Eye": "#20B2AA",
     "Circulatory": "#FF6347",
-    "Skin": "#F08080",
-    "Other": "#808080"
-}
+    "Skin": "#F08080"}
 
 def parse_iqr(iqr_string):
     """Parse IQR string of format 'median [Q1-Q3]' into (median, q1, q3)"""

@@ -89,7 +89,8 @@ SYSTEM_COLORS = {
     "Ear": "#4169E1",
     "Eye": "#20B2AA",
     "Circulatory": "#FF6347",
-    "Skin": "#F08080"
+    "Skin": "#F08080",
+    "Other": "#808080"
 }
 
 def parse_iqr(iqr_string):

@@ -1529,7 +1529,6 @@ def main():
                                     st.session_state.network_html = None
                 
                 # Cohort Network Tab
-                w# Cohort Network Tab
                 with tabs[4]:
                     st.header("Cohort Network Analysis")
                     st.markdown("""

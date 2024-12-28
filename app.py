@@ -892,7 +892,7 @@ def add_cohort_tab():
             # Sliders for filtering
             min_or = st.slider(
                 "Minimum Odds Ratio",
-                1.0, 10.0, 2.0, 0.5,
+                1.0, 10.0, 2.0, 0.1,
                 key="cohort_min_or",
                 help="Filter relationships by minimum odds ratio"
             )

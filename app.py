@@ -1553,7 +1553,7 @@ def main():
                             # Sliders for filtering - note the unique keys "cohort_network_X"
                             min_or = st.slider(
                                 "Minimum Odds Ratio",
-                                1.0, 10.0, 2.0, 0.5,
+                                1.0, 10.0, 2.0, 0.1,
                                 key="cohort_network_min_or",  # Changed key
                                 help="Filter relationships by minimum odds ratio"
                             )

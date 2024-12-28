@@ -1529,6 +1529,7 @@ def main():
                                     st.session_state.network_html = None
                 
                 # Cohort Network Tab
+                w# Cohort Network Tab
                 with tabs[4]:
                     st.header("Cohort Network Analysis")
                     st.markdown("""
@@ -1542,11 +1543,11 @@ def main():
                         with st.container():
                             st.markdown("### Control Panel")
                             
-                            # Sliders for filtering
+                            # Sliders for filtering - note the unique keys "cohort_network_X"
                             min_or = st.slider(
                                 "Minimum Odds Ratio",
                                 1.0, 10.0, 2.0, 0.5,
-                                key="cohort_min_or",
+                                key="cohort_network_min_or",  # Changed key
                                 help="Filter relationships by minimum odds ratio"
                             )
 
@@ -1555,12 +1556,13 @@ def main():
                                 int(data['PairFrequency'].min()),
                                 int(data['PairFrequency'].max()),
                                 int(data['PairFrequency'].min()),
+                                key="cohort_network_min_freq",  # Changed key
                                 help="Minimum number of occurrences required"
                             )
 
                             generate_button = st.button(
                                 "🔄 Generate Network",
-                                key="generate_network",
+                                key="cohort_network_generate",  # Changed key
                                 help="Create network visualization"
                             )
 
@@ -1579,7 +1581,8 @@ def main():
                                         label="📥 Download Network Visualization",
                                         data=html_content,
                                         file_name="condition_network.html",
-                                        mime="text/html"
+                                        mime="text/html",
+                                        key="cohort_network_download"  # Added key
                                     )
                                     
                                 except Exception as e:

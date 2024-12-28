@@ -751,7 +751,7 @@ def create_network_visualization(data, min_or, min_freq):
     """
     
     for system, color in sorted(SYSTEM_COLORS.items()):
-        if system != "Other":
+        if system != "Other":  # Skip "Other" in legend
             legend_html += f"""
             <div style="margin: 2px 0;">
                 <span style="display: inline-block; width: 20px; height: 20px; background-color: {color}50;
@@ -759,7 +759,7 @@ def create_network_visualization(data, min_or, min_freq):
                 <span style="vertical-align: middle;">{system}</span>
             </div>
             """
-    
+
     legend_html += """</div>"""
 
     # Create patient count legend
@@ -783,7 +783,6 @@ def create_network_visualization(data, min_or, min_freq):
             <div style="border-bottom: 5px solid black; width: 40px; display: inline-block; margin-right: 5px;"></div>
             100% of patient pairs</div>
     </div>
-    """
     """
 
     # Network options
@@ -818,40 +817,68 @@ def create_network_visualization(data, min_or, min_freq):
     """)
 
     # Add nodes with system-based positioning
-    unique_systems = set(condition_categories[cond] for cond in set(filtered_data['ConditionA']) | set(filtered_data['ConditionB']))
-    system_angles = {sys: i * (2 * math.pi / len(unique_systems)) for i, sys in enumerate(sorted(unique_systems))}
-    radius = 300
-
+    conditions_by_system = {}
+    
+    # First, organize conditions by system
     for _, row in filtered_data.iterrows():
         for condition in [row['ConditionA'], row['ConditionB']]:
             if condition not in net.get_nodes():
                 system = condition_categories.get(condition, "Other")
-                color = SYSTEM_COLORS.get(system, SYSTEM_COLORS["Other"])
-                angle = system_angles[system]
-                
-                x = radius * math.cos(angle) + random.uniform(-50, 50)
-                y = radius * math.sin(angle) + random.uniform(-50, 50)
-                
-                net.add_node(
-                    condition,
-                    label=condition,
-                    title=f"{condition}\nSystem: {system}",
-                    x=x,
-                    y=y,
-                    color={'background': f"{color}50", 'border': color},
-                    size=30
-                )
+                if system not in conditions_by_system:
+                    conditions_by_system[system] = []
+                conditions_by_system[system].append(condition)
+
+    # Calculate positions
+    radius = 300
+    system_angles = {}
+    for i, system in enumerate(sorted(conditions_by_system.keys())):
+        angle = (2 * math.pi * i) / len(conditions_by_system)
+        system_angles[system] = angle
+
+    # Add nodes
+    for system, conditions in conditions_by_system.items():
+        base_angle = system_angles[system]
+        for i, condition in enumerate(conditions):
+            # Calculate position with some randomness
+            angle = base_angle + (random.random() - 0.5) * 0.5
+            x = radius * math.cos(angle) + random.uniform(-50, 50)
+            y = radius * math.sin(angle) + random.uniform(-50, 50)
+            
+            # Get color from SYSTEM_COLORS
+            color = SYSTEM_COLORS.get(system, SYSTEM_COLORS["Other"])
+            
+            net.add_node(
+                condition,
+                label=condition,
+                title=f"{condition}\nSystem: {system}",
+                x=x,
+                y=y,
+                color={'background': f"{color}50", 'border': color},
+                size=30
+            )
+
+    # Get pair frequencies for edge widths
+    pair_frequencies = [row['PairFrequency'] for _, row in filtered_data.iterrows()]
+    if pair_frequencies:
+        percentiles = np.percentile(pair_frequencies, [0, 20, 40, 60, 80, 100])
+    else:
+        percentiles = [0, 0, 0, 0, 0, 0]
 
     # Add edges
     total_patients = data['TotalPatientsInGroup'].iloc[0]
     for _, row in filtered_data.iterrows():
-        # Calculate edge width based on odds ratio
-        if row['OddsRatio'] >= 5:
-            width = 5
-        elif row['OddsRatio'] >= 3:
-            width = 3
-        else:
+        # Determine edge width based on frequency percentile
+        freq = row['PairFrequency']
+        if freq < percentiles[1]:
             width = 1
+        elif freq < percentiles[2]:
+            width = 2
+        elif freq < percentiles[3]:
+            width = 3
+        elif freq < percentiles[4]:
+            width = 4
+        else:
+            width = 5
 
         prevalence = (row['PairFrequency'] / total_patients) * 100
         

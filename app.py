@@ -731,8 +731,8 @@ def create_personalized_analysis(data, patient_conditions, time_horizon=None, ti
     return html
 
 def create_network_visualization(data, min_or, min_freq):
-    """Create network visualization for cohort analysis"""
-    net = Network(notebook=True, bgcolor='white', font_color='black', cdn_resources='in_line', height="800px", width="100%")
+    """Create network visualization with legends and edge details matching paper format"""
+    net = Network(height="800px", width="100%", bgcolor='white', font_color='black', directed=True)
     
     # Filter data
     filtered_data = data[
@@ -740,36 +740,49 @@ def create_network_visualization(data, min_or, min_freq):
         (data['PairFrequency'] >= min_freq)
     ].copy()
 
-    # Create legends HTML
+    # Create condition categories legend HTML
     legend_html = """
     <div style="position: absolute; top: 10px; left: 10px; background: white; padding: 10px; 
-                border: 1px solid #ccc; font-size: 12px; max-width: 200px;">
+                border: 1px solid #ccc; font-size: 12px;">
         <div style="font-weight: bold; margin-bottom: 5px;">Condition Categories</div>
     """
-    
     for category, color in sorted(SYSTEM_COLORS.items()):
         if category != "Other":
             legend_html += f"""
             <div style="margin: 2px 0;">
-                <span style="display: inline-block; width: 20px; height: 20px; background-color: {color}; 
-                      border: 1px solid {color}; margin-right: 5px; vertical-align: middle;"></span>
-                <span style="vertical-align: middle;">{category}</span>
+                <div style="display: inline-block; width: 20px; height: 20px; background: {color};
+                     border: 1px solid #000; margin-right: 5px;"></div>
+                {category}
             </div>
             """
     legend_html += "</div>"
 
-    # Create patient count legend
+    # Create patient count ranges legend
     count_legend = """
     <div style="position: absolute; top: 10px; right: 10px; background: white; padding: 10px; 
-                border: 1px solid #ccc; font-size: 12px; z-index: 1000;">
+                border: 1px solid #ccc; font-size: 12px;">
         <div style="font-weight: bold; margin-bottom: 5px;">Patient Count Ranges</div>
     """
+
+    # Get frequency percentiles
+    freqs = filtered_data['PairFrequency'].values
+    percentiles = np.percentile(freqs, [0, 20, 40, 60, 80, 100])
     
-    for i in range(1, 6):
+    # Add ranges to legend
+    ranges = [
+        (percentiles[0], percentiles[1], "0% - 20%"),
+        (percentiles[1], percentiles[2], "20% - 40%"),
+        (percentiles[2], percentiles[3], "40% - 60%"),
+        (percentiles[3], percentiles[4], "60% - 80%"),
+        (percentiles[4], percentiles[5], "80%+")
+    ]
+    
+    for i, (lower, upper, label) in enumerate(ranges, 1):
         count_legend += f"""
         <div style="margin: 5px 0;">
             <div style="border-bottom: {i}px solid black; width: 40px; display: inline-block; margin-right: 5px;"></div>
-            {i * 20}% of patient pairs</div>
+            {int(lower)} ≤ Patients < {int(upper)} ({label})
+        </div>
         """
     count_legend += "</div>"
 
@@ -777,69 +790,59 @@ def create_network_visualization(data, min_or, min_freq):
     net.set_options("""
     {
         "nodes": {
-            "font": {"size": 16},
-            "scaling": {"min": 10, "max": 30}
+            "font": {"size": 14},
+            "shape": "dot"
         },
         "edges": {
             "font": {
-                "size": 12,
-                "align": "horizontal",
+                "size": 8,
+                "align": "middle",
                 "background": "white"
             },
-            "color": {"inherit": false},
             "smooth": {"type": "curvedCW", "roundness": 0.2}
         },
         "physics": {
-            "enabled": false
-        },
-        "interaction": {
-            "hover": true,
-            "navigationButtons": true,
-            "keyboard": true
+            "enabled": true,
+            "barnesHut": {
+                "gravitationalConstant": -2000,
+                "centralGravity": 0.3,
+                "springLength": 200
+            }
         }
     }
     """)
 
-    # Calculate positions for nodes based on categories
-    category_positions = {}
-    radius = 300
-    active_categories = set(condition_categories[node] for node in set(filtered_data['ConditionA']) | set(filtered_data['ConditionB']))
+    # Add nodes with system-based layout
+    unique_systems = set(condition_categories[cond] for cond in set(filtered_data['ConditionA']) | set(filtered_data['ConditionB']))
     
-    for i, category in enumerate(sorted(active_categories)):
-        angle = i * (2 * math.pi / len(active_categories))
-        category_positions[category] = {
-            'x': radius * math.cos(angle),
-            'y': radius * math.sin(angle)
-        }
-
-    # Add nodes
+    # Calculate node positions in a circle
+    radius = 300
+    system_angles = {sys: i * (2 * math.pi / len(unique_systems)) for i, sys in enumerate(sorted(unique_systems))}
+    
     for condition in set(filtered_data['ConditionA']) | set(filtered_data['ConditionB']):
-        category = condition_categories.get(condition, "Other")
-        color = SYSTEM_COLORS.get(category, SYSTEM_COLORS["Other"])
-        pos = category_positions.get(category, {'x': 0, 'y': 0})
+        system = condition_categories.get(condition, "Other")
+        color = SYSTEM_COLORS.get(system, SYSTEM_COLORS["Other"])
+        angle = system_angles[system]
         
-        x = pos['x'] + random.uniform(-50, 50)
-        y = pos['y'] + random.uniform(-50, 50)
+        # Add some random variation to position
+        x = radius * math.cos(angle) + random.uniform(-50, 50)
+        y = radius * math.sin(angle) + random.uniform(-50, 50)
         
         net.add_node(
             condition,
             label=condition,
-            title=f"{condition}\nCategory: {category}",
+            title=f"{condition}\nSystem: {system}",
             x=x,
             y=y,
-            size=45,
-            color={'background': f"{color}50", 'border': color},
-            font={'size': 14, 'color': 'black'}
+            color={'background': color, 'border': '#000000'},
+            size=30
         )
 
-    # Get pair frequencies for edge widths
-    pair_frequencies = filtered_data['PairFrequency'].values
-    percentiles = np.percentile(pair_frequencies, [0, 20, 40, 60, 80, 100])
-
-    # Add edges
+    # Add edges with proper width and labels
     for _, row in filtered_data.iterrows():
         freq = row['PairFrequency']
-        # Determine edge width based on percentile
+        
+        # Determine edge width based on frequency percentiles
         if freq < percentiles[1]:
             width = 1
         elif freq < percentiles[2]:
@@ -851,18 +854,18 @@ def create_network_visualization(data, min_or, min_freq):
         else:
             width = 5
 
-        edge_label = (f"OR: {row['OddsRatio']:.1f}\n"
-                     f"Years: {row['MedianDurationYearsWithIQR']}\n"
-                     f"Pair Frequency: {row['PairFrequency']}")
-
+        # Create edge label showing OR and Years (matching your graphs)
+        edge_label = f"OR: {row['OddsRatio']:.1f}\nYears: {row['MedianDurationYearsWithIQR']}"
+        
         net.add_edge(
             row['ConditionA'],
             row['ConditionB'],
-            title=edge_label,
+            label=edge_label,
+            title=edge_label,  # hover text
             width=width,
             arrows={'to': {'enabled': True, 'scaleFactor': 0.5}},
             color={'color': 'rgba(128,128,128,0.7)', 'highlight': 'black'},
-            smooth={'type': 'curvedCW', 'roundness': 0.2}
+            font={'size': 8, 'color': 'black', 'strokeWidth': 2, 'strokeColor': 'white'}
         )
 
     # Generate final HTML with legends
@@ -870,8 +873,6 @@ def create_network_visualization(data, min_or, min_freq):
     final_html = html.replace('</body>', f'{legend_html}{count_legend}</body>')
     
     return final_html
-
-
 
 def add_cohort_tab():
     """Add cohort analysis tab to the main app"""

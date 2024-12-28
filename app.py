@@ -732,7 +732,7 @@ def create_personalized_analysis(data, patient_conditions, time_horizon=None, ti
     return html
 
 def create_network_visualization(data, min_or, min_freq):
-    """Create network visualization with legends and edge details matching paper format"""
+    """Create network visualization with legends with pastel colors matching paper style"""
     net = Network(height="800px", width="100%", bgcolor='white', font_color='black', directed=True)
     
     # Filter data
@@ -741,7 +741,7 @@ def create_network_visualization(data, min_or, min_freq):
         (data['PairFrequency'] >= min_freq)
     ].copy()
 
-    # Create condition categories legend HTML
+    # Create condition categories legend HTML - Note the color50 for pastel effect
     legend_html = """
     <div style="position: absolute; top: 10px; left: 10px; background: white; padding: 10px; 
                 border: 1px solid #ccc; font-size: 12px;">
@@ -751,8 +751,8 @@ def create_network_visualization(data, min_or, min_freq):
         if category != "Other":
             legend_html += f"""
             <div style="margin: 2px 0;">
-                <div style="display: inline-block; width: 20px; height: 20px; background: {color};
-                     border: 1px solid #000; margin-right: 5px;"></div>
+                <div style="display: inline-block; width: 20px; height: 20px; background: {color}50;
+                     border: 1px solid {color}; margin-right: 5px;"></div>
                 {category}
             </div>
             """
@@ -764,8 +764,8 @@ def create_network_visualization(data, min_or, min_freq):
                 border: 1px solid #ccc; font-size: 12px;">
         <div style="font-weight: bold; margin-bottom: 5px;">Patient Count Ranges</div>
     """
-
-    # Get frequency percentiles
+    
+    # Get frequency percentiles for edge widths
     freqs = filtered_data['PairFrequency'].values
     percentiles = np.percentile(freqs, [0, 20, 40, 60, 80, 100])
     
@@ -787,7 +787,7 @@ def create_network_visualization(data, min_or, min_freq):
         """
     count_legend += "</div>"
 
-    # Network options
+    # Network options for clear visualization
     net.set_options("""
     {
         "nodes": {
@@ -813,33 +813,33 @@ def create_network_visualization(data, min_or, min_freq):
     }
     """)
 
-    # Add nodes with system-based layout
+    # Add nodes with system-based layout and pastel colors
     unique_systems = set(condition_categories[cond] for cond in set(filtered_data['ConditionA']) | set(filtered_data['ConditionB']))
-    
-    # Calculate node positions in a circle
     radius = 300
     system_angles = {sys: i * (2 * math.pi / len(unique_systems)) for i, sys in enumerate(sorted(unique_systems))}
     
+    # Add nodes with pastel colors
     for condition in set(filtered_data['ConditionA']) | set(filtered_data['ConditionB']):
         system = condition_categories.get(condition, "Other")
-        color = SYSTEM_COLORS.get(system, SYSTEM_COLORS["Other"])
+        base_color = SYSTEM_COLORS.get(system, SYSTEM_COLORS["Other"])
         angle = system_angles[system]
         
-        # Add some random variation to position
+        # Add random variation to position
         x = radius * math.cos(angle) + random.uniform(-50, 50)
         y = radius * math.sin(angle) + random.uniform(-50, 50)
         
+        # Create node with pastel color (using 50% transparency)
         net.add_node(
             condition,
             label=condition,
             title=f"{condition}\nSystem: {system}",
             x=x,
             y=y,
-            color={'background': color, 'border': '#000000'},
+            color={'background': f"{base_color}50", 'border': base_color},
             size=30
         )
 
-    # Add edges with proper width and labels
+    # Add edges
     for _, row in filtered_data.iterrows():
         freq = row['PairFrequency']
         
@@ -855,14 +855,14 @@ def create_network_visualization(data, min_or, min_freq):
         else:
             width = 5
 
-        # Create edge label showing OR and Years (matching your graphs)
+        # Edge label showing OR and Years
         edge_label = f"OR: {row['OddsRatio']:.1f}\nYears: {row['MedianDurationYearsWithIQR']}"
         
         net.add_edge(
             row['ConditionA'],
             row['ConditionB'],
             label=edge_label,
-            title=edge_label,  # hover text
+            title=edge_label,
             width=width,
             arrows={'to': {'enabled': True, 'scaleFactor': 0.5}},
             color={'color': 'rgba(128,128,128,0.7)', 'highlight': 'black'},

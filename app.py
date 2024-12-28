@@ -766,17 +766,24 @@ def create_network_visualization(data, min_or, min_freq):
     count_legend = """
     <div style="position: absolute; top: 10px; right: 10px; background: white; padding: 10px; 
                 border: 1px solid #ccc; font-size: 12px; z-index: 1000;">
-        <div style="font-weight: bold; margin-bottom: 5px;">Edge Thickness Guide</div>
+        <div style="font-weight: bold; margin-bottom: 5px;">Patient Count Ranges</div>
         <div style="margin: 5px 0;">
             <div style="border-bottom: 1px solid black; width: 40px; display: inline-block; margin-right: 5px;"></div>
-            Low association (OR < 3)</div>
+            20% of patient pairs</div>
+        <div style="margin: 5px 0;">
+            <div style="border-bottom: 2px solid black; width: 40px; display: inline-block; margin-right: 5px;"></div>
+            40% of patient pairs</div>
         <div style="margin: 5px 0;">
             <div style="border-bottom: 3px solid black; width: 40px; display: inline-block; margin-right: 5px;"></div>
-            Moderate (3 ≤ OR < 5)</div>
+            60% of patient pairs</div>
+        <div style="margin: 5px 0;">
+            <div style="border-bottom: 4px solid black; width: 40px; display: inline-block; margin-right: 5px;"></div>
+            80% of patient pairs</div>
         <div style="margin: 5px 0;">
             <div style="border-bottom: 5px solid black; width: 40px; display: inline-block; margin-right: 5px;"></div>
-            Strong (OR ≥ 5)</div>
+            100% of patient pairs</div>
     </div>
+    """
     """
 
     # Network options

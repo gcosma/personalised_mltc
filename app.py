@@ -729,6 +729,202 @@ def create_personalized_analysis(data, patient_conditions, time_horizon=None, ti
 
     return html
 
+
+
+def create_network_visualization(data, min_or, min_freq):
+    """Create network visualization with legends"""
+    # Create network
+    net = Network(height="800px", width="100%", bgcolor='white', font_color='black', directed=True)
+    
+    # Filter data
+    filtered_data = data[
+        (data['OddsRatio'] >= min_or) &
+        (data['PairFrequency'] >= min_freq)
+    ].copy()
+
+    # Create legends HTML
+    legend_html = """
+    <div style="position: absolute; top: 10px; left: 10px; background: white; padding: 10px; 
+                border: 1px solid #ccc; font-size: 12px; z-index: 1000;">
+        <div style="font-weight: bold; margin-bottom: 5px;">Body Systems</div>
+    """
+    
+    for system, color in sorted(SYSTEM_COLORS.items()):
+        if system != "Other":
+            legend_html += f"""
+            <div style="margin: 2px 0;">
+                <span style="display: inline-block; width: 20px; height: 20px; background-color: {color}50;
+                      border: 1px solid {color}; margin-right: 5px; vertical-align: middle;"></span>
+                <span style="vertical-align: middle;">{system}</span>
+            </div>
+            """
+    
+    legend_html += """</div>"""
+
+    # Create patient count legend
+    count_legend = """
+    <div style="position: absolute; top: 10px; right: 10px; background: white; padding: 10px; 
+                border: 1px solid #ccc; font-size: 12px; z-index: 1000;">
+        <div style="font-weight: bold; margin-bottom: 5px;">Edge Thickness Guide</div>
+        <div style="margin: 5px 0;">
+            <div style="border-bottom: 1px solid black; width: 40px; display: inline-block; margin-right: 5px;"></div>
+            Low association (OR < 3)</div>
+        <div style="margin: 5px 0;">
+            <div style="border-bottom: 3px solid black; width: 40px; display: inline-block; margin-right: 5px;"></div>
+            Moderate (3 ≤ OR < 5)</div>
+        <div style="margin: 5px 0;">
+            <div style="border-bottom: 5px solid black; width: 40px; display: inline-block; margin-right: 5px;"></div>
+            Strong (OR ≥ 5)</div>
+    </div>
+    """
+
+    # Network options
+    net.set_options("""
+    {
+        "nodes": {
+            "font": {"size": 16},
+            "scaling": {"min": 10, "max": 30}
+        },
+        "edges": {
+            "color": {"inherit": false},
+            "font": {
+                "size": 12,
+                "align": "middle",
+                "background": "white"
+            },
+            "smooth": {
+                "type": "curvedCW",
+                "roundness": 0.2
+            }
+        },
+        "physics": {
+            "enabled": true,
+            "barnesHut": {
+                "gravitationalConstant": -4000,
+                "centralGravity": 0.1,
+                "springLength": 250,
+                "springConstant": 0.03
+            }
+        }
+    }
+    """)
+
+    # Add nodes with system-based positioning
+    unique_systems = set(condition_categories[cond] for cond in set(filtered_data['ConditionA']) | set(filtered_data['ConditionB']))
+    system_angles = {sys: i * (2 * math.pi / len(unique_systems)) for i, sys in enumerate(sorted(unique_systems))}
+    radius = 300
+
+    for _, row in filtered_data.iterrows():
+        for condition in [row['ConditionA'], row['ConditionB']]:
+            if condition not in net.get_nodes():
+                system = condition_categories.get(condition, "Other")
+                color = SYSTEM_COLORS.get(system, SYSTEM_COLORS["Other"])
+                angle = system_angles[system]
+                
+                x = radius * math.cos(angle) + random.uniform(-50, 50)
+                y = radius * math.sin(angle) + random.uniform(-50, 50)
+                
+                net.add_node(
+                    condition,
+                    label=condition,
+                    title=f"{condition}\nSystem: {system}",
+                    x=x,
+                    y=y,
+                    color={'background': f"{color}50", 'border': color},
+                    size=30
+                )
+
+    # Add edges
+    total_patients = data['TotalPatientsInGroup'].iloc[0]
+    for _, row in filtered_data.iterrows():
+        # Calculate edge width based on odds ratio
+        if row['OddsRatio'] >= 5:
+            width = 5
+        elif row['OddsRatio'] >= 3:
+            width = 3
+        else:
+            width = 1
+
+        prevalence = (row['PairFrequency'] / total_patients) * 100
+        
+        # Create edge label
+        edge_label = (f"OR: {row['OddsRatio']:.1f}\n"
+                     f"Median Time: {row['MedianDurationYearsWithIQR']}\n"
+                     f"Frequency: {row['PairFrequency']} ({prevalence:.1f}%)")
+
+        net.add_edge(
+            row['ConditionA'],
+            row['ConditionB'],
+            title=edge_label,
+            width=width,
+            arrows={'to': {'enabled': True}},
+            color={'color': 'rgba(128,128,128,0.7)', 'highlight': 'black'}
+        )
+
+    # Combine network HTML with legends
+    html = net.generate_html()
+    final_html = html.replace('</body>', f'{legend_html}{count_legend}</body>')
+    
+    return final_html
+
+def add_cohort_tab():
+    """Add cohort analysis tab to the main app"""
+    st.header("Cohort Network Analysis")
+    st.markdown("""
+    Visualize relationships between conditions as a network graph. 
+    Node colors represent body systems, and edge thickness indicates association strength.
+    """)
+
+    main_col, control_col = st.columns([3, 1])
+
+    with control_col:
+        with st.container():
+            st.markdown("### Control Panel")
+            
+            # Sliders for filtering
+            min_or = st.slider(
+                "Minimum Odds Ratio",
+                1.0, 10.0, 2.0, 0.5,
+                key="cohort_min_or",
+                help="Filter relationships by minimum odds ratio"
+            )
+
+            min_freq = st.slider(
+                "Minimum Pair Frequency",
+                int(data['PairFrequency'].min()),
+                int(data['PairFrequency'].max()),
+                int(data['PairFrequency'].min()),
+                help="Minimum number of occurrences required"
+            )
+
+            generate_button = st.button(
+                "🔄 Generate Network",
+                key="generate_network",
+                help="Create network visualization"
+            )
+
+    with main_col:
+        if generate_button:
+            with st.spinner("🌐 Generating network visualization..."):
+                try:
+                    # Create visualization
+                    html_content = create_network_visualization(data, min_or, min_freq)
+                    
+                    # Display network
+                    st.components.v1.html(html_content, height=800)
+                    
+                    # Add download button
+                    st.download_button(
+                        label="📥 Download Network Visualization",
+                        data=html_content,
+                        file_name="condition_network.html",
+                        mime="text/html"
+                    )
+                    
+                except Exception as e:
+                    st.error(f"Error generating network visualization: {str(e)}")
+
+
 # Add these imports at the top with your other imports
 def check_password():
     """Returns `True` if the user had the correct password."""
@@ -765,7 +961,9 @@ def add_footer():
         </div>
         """,
         unsafe_allow_html=True
-    )        
+    )  
+
+
 def main():
     # Initialize session state for data persistence
     if 'sensitivity_results' not in st.session_state:
@@ -907,7 +1105,8 @@ def main():
                     "📈 Sensitivity Analysis",
                     "🔍 Condition Combinations",
                     "👤 Personalised Analysis",
-                    "🎯 Personalised Trajectory Filter"
+                    "🎯 Personalised Trajectory Filter",
+                    "🌐 Cohort Network"  
                 ])
 
                 # Sensitivity Analysis Tab
@@ -1224,7 +1423,6 @@ def main():
                             )
 
                 # Custom Trajectory Filter Tab
-                # Custom Trajectory Filter Tab
                 with tabs[3]:
                     st.header("Custom Trajectory Filter")
                     st.markdown("""
@@ -1329,19 +1527,63 @@ def main():
                                 except Exception as viz_error:
                                     st.error(f"Failed to generate network visualisation: {str(viz_error)}")
                                     st.session_state.network_html = None
-                        
-                        # Display existing network if available
-                        elif st.session_state.network_html is not None:
-                            st.components.v1.html(st.session_state.network_html, height=800)
-                            st.download_button(
-                                label="📥 Download Network",
-                                data=st.session_state.network_html,
-                                file_name="custom_trajectory_network.html",
-                                mime="text/html"
-                            )
-                            
-                            
                 
+                # Cohort Network Tab
+                with tabs[4]:
+                    st.header("Cohort Network Analysis")
+                    st.markdown("""
+                    Visualize relationships between conditions as a network graph. 
+                    Node colors represent body systems, and edge thickness indicates association strength.
+                    """)
+
+                    main_col, control_col = st.columns([3, 1])
+
+                    with control_col:
+                        with st.container():
+                            st.markdown("### Control Panel")
+                            
+                            # Sliders for filtering
+                            min_or = st.slider(
+                                "Minimum Odds Ratio",
+                                1.0, 10.0, 2.0, 0.5,
+                                key="cohort_min_or",
+                                help="Filter relationships by minimum odds ratio"
+                            )
+
+                            min_freq = st.slider(
+                                "Minimum Pair Frequency",
+                                int(data['PairFrequency'].min()),
+                                int(data['PairFrequency'].max()),
+                                int(data['PairFrequency'].min()),
+                                help="Minimum number of occurrences required"
+                            )
+
+                            generate_button = st.button(
+                                "🔄 Generate Network",
+                                key="generate_network",
+                                help="Create network visualization"
+                            )
+
+                    with main_col:
+                        if generate_button:
+                            with st.spinner("🌐 Generating network visualization..."):
+                                try:
+                                    # Create visualization
+                                    html_content = create_network_visualization(data, min_or, min_freq)
+                                    
+                                    # Display network
+                                    st.components.v1.html(html_content, height=800)
+                                    
+                                    # Add download button
+                                    st.download_button(
+                                        label="📥 Download Network Visualization",
+                                        data=html_content,
+                                        file_name="condition_network.html",
+                                        mime="text/html"
+                                    )
+                                    
+                                except Exception as e:
+                                    st.error(f"Error generating network visualization: {str(e)}")
             
             except Exception as e:
                 st.error(f"Error processing data: {str(e)}")
@@ -1350,7 +1592,8 @@ def main():
     except Exception as e:
         st.error(f"Application error: {str(e)}")
         st.stop()
+        
     add_footer()     
+
 if __name__ == "__main__":
     main()
-                                

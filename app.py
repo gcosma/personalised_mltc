@@ -32,13 +32,13 @@ def clear_session_state():
 
 # Disease category mappings
 condition_categories = {
-   "Anaemia": "Blood",
+    "Anaemia": "Blood",
     "Cardiac Arrhythmias": "Circulatory",
     "Coronary Heart Disease": "Circulatory",
     "Heart Failure": "Circulatory",
     "Hypertension": "Circulatory",
     "Peripheral Vascular Disease": "Circulatory",
-    "Stroke": "Nervous",
+    "Stroke": "Circulatory",
     "Barretts Oesophagus": "Digestive",
     "Chronic Constipation": "Digestive",
     "Chronic Diarrhoea": "Digestive",
@@ -53,6 +53,7 @@ condition_categories = {
     "Thyroid Disorders": "Endocrine",
     "Visual Impairment": "Eye",
     "Chronic Kidney Disease": "Genitourinary",
+    "Menopausal And Perimenopausal": "Genitourinary",
     "Menopausal and Perimenopausal": "Genitourinary",
     "Dementia": "Mental",
     "Mental Illness": "Mental",
@@ -74,23 +75,24 @@ condition_categories = {
     "Psoriasis": "Skin"
 }
 
-# System colors for visualization
+# 2. Add this SYSTEM_COLORS dictionary after the condition_categories:
 SYSTEM_COLORS = {
-    "Endocrine": "#BA55D3",
-    "Blood": "#DC143C",
-    "Digestive": "#32CD32",
-    "Respiratory": "#48D1CC",
-    "Neoplasms": "#800080",
-    "Nervous": "#FFD700",
-    "Musculoskeletal": "#4682B4",
-    "Genitourinary": "#DAA520",
-    "Mental": "#8B4513",
-    "Mental": "#A0522D",
-    "Ear": "#4169E1",
-    "Eye": "#20B2AA",
-    "Circulatory": "#FF6347",
-    "Skin": "#F08080",
-    "Other": "#808080"}
+    "Blood": "#DC143C",        # Crimson
+    "Circulatory": "#FF4500",  # Orange Red
+    "Digestive": "#32CD32",    # Lime Green
+    "Ear": "#4169E1",         # Royal Blue
+    "Endocrine": "#BA55D3",    # Medium Orchid
+    "Eye": "#1E90FF",         # Dodger Blue (changed from teal)
+    "Genitourinary": "#DAA520", # Goldenrod
+    "Mental": "#8B4513",       # Saddle Brown
+    "Musculoskeletal": "#4682B4", # Steel Blue
+    "Neoplasms": "#800080",    # Purple
+    "Nervous": "#FFD700",      # Gold
+    "Respiratory": "#006400",   # Dark Green (changed from teal)
+    "Skin": "#F08080",        # Light Coral
+    "Other": "#808080"         # Gray
+}
+
 
 def parse_iqr(iqr_string):
     """Parse IQR string of format 'median [Q1-Q3]' into (median, q1, q3)"""

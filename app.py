@@ -730,7 +730,146 @@ def create_personalized_analysis(data, patient_conditions, time_horizon=None, ti
 
     return html
 
+def create_network_visualization(data, min_or, min_freq):
+    """Create network visualization for cohort analysis"""
+    net = Network(notebook=True, bgcolor='white', font_color='black', cdn_resources='in_line', height="800px", width="100%")
+    
+    # Filter data
+    filtered_data = data[
+        (data['OddsRatio'] >= min_or) &
+        (data['PairFrequency'] >= min_freq)
+    ].copy()
 
+    # Create legends HTML
+    legend_html = """
+    <div style="position: absolute; top: 10px; left: 10px; background: white; padding: 10px; 
+                border: 1px solid #ccc; font-size: 12px; max-width: 200px;">
+        <div style="font-weight: bold; margin-bottom: 5px;">Condition Categories</div>
+    """
+    
+    for category, color in sorted(SYSTEM_COLORS.items()):
+        if category != "Other":
+            legend_html += f"""
+            <div style="margin: 2px 0;">
+                <span style="display: inline-block; width: 20px; height: 20px; background-color: {color}; 
+                      border: 1px solid {color}; margin-right: 5px; vertical-align: middle;"></span>
+                <span style="vertical-align: middle;">{category}</span>
+            </div>
+            """
+    legend_html += "</div>"
+
+    # Create patient count legend
+    count_legend = """
+    <div style="position: absolute; top: 10px; right: 10px; background: white; padding: 10px; 
+                border: 1px solid #ccc; font-size: 12px; z-index: 1000;">
+        <div style="font-weight: bold; margin-bottom: 5px;">Patient Count Ranges</div>
+    """
+    
+    for i in range(1, 6):
+        count_legend += f"""
+        <div style="margin: 5px 0;">
+            <div style="border-bottom: {i}px solid black; width: 40px; display: inline-block; margin-right: 5px;"></div>
+            {i * 20}% of patient pairs</div>
+        """
+    count_legend += "</div>"
+
+    # Network options
+    net.set_options("""
+    {
+        "nodes": {
+            "font": {"size": 16},
+            "scaling": {"min": 10, "max": 30}
+        },
+        "edges": {
+            "font": {
+                "size": 12,
+                "align": "horizontal",
+                "background": "white"
+            },
+            "color": {"inherit": false},
+            "smooth": {"type": "curvedCW", "roundness": 0.2}
+        },
+        "physics": {
+            "enabled": false
+        },
+        "interaction": {
+            "hover": true,
+            "navigationButtons": true,
+            "keyboard": true
+        }
+    }
+    """)
+
+    # Calculate positions for nodes based on categories
+    category_positions = {}
+    radius = 300
+    active_categories = set(condition_categories[node] for node in set(filtered_data['ConditionA']) | set(filtered_data['ConditionB']))
+    
+    for i, category in enumerate(sorted(active_categories)):
+        angle = i * (2 * math.pi / len(active_categories))
+        category_positions[category] = {
+            'x': radius * math.cos(angle),
+            'y': radius * math.sin(angle)
+        }
+
+    # Add nodes
+    for condition in set(filtered_data['ConditionA']) | set(filtered_data['ConditionB']):
+        category = condition_categories.get(condition, "Other")
+        color = SYSTEM_COLORS.get(category, SYSTEM_COLORS["Other"])
+        pos = category_positions.get(category, {'x': 0, 'y': 0})
+        
+        x = pos['x'] + random.uniform(-50, 50)
+        y = pos['y'] + random.uniform(-50, 50)
+        
+        net.add_node(
+            condition,
+            label=condition,
+            title=f"{condition}\nCategory: {category}",
+            x=x,
+            y=y,
+            size=45,
+            color={'background': f"{color}50", 'border': color},
+            font={'size': 14, 'color': 'black'}
+        )
+
+    # Get pair frequencies for edge widths
+    pair_frequencies = filtered_data['PairFrequency'].values
+    percentiles = np.percentile(pair_frequencies, [0, 20, 40, 60, 80, 100])
+
+    # Add edges
+    for _, row in filtered_data.iterrows():
+        freq = row['PairFrequency']
+        # Determine edge width based on percentile
+        if freq < percentiles[1]:
+            width = 1
+        elif freq < percentiles[2]:
+            width = 2
+        elif freq < percentiles[3]:
+            width = 3
+        elif freq < percentiles[4]:
+            width = 4
+        else:
+            width = 5
+
+        edge_label = (f"OR: {row['OddsRatio']:.1f}\n"
+                     f"Years: {row['MedianDurationYearsWithIQR']}\n"
+                     f"Pair Frequency: {row['PairFrequency']}")
+
+        net.add_edge(
+            row['ConditionA'],
+            row['ConditionB'],
+            title=edge_label,
+            width=width,
+            arrows={'to': {'enabled': True, 'scaleFactor': 0.5}},
+            color={'color': 'rgba(128,128,128,0.7)', 'highlight': 'black'},
+            smooth={'type': 'curvedCW', 'roundness': 0.2}
+        )
+
+    # Generate final HTML with legends
+    html = net.generate_html()
+    final_html = html.replace('</body>', f'{legend_html}{count_legend}</body>')
+    
+    return final_html
 
 
 

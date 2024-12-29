@@ -16,7 +16,69 @@ from itertools import combinations
 import requests
 from io import StringIO
 
+# Add these after your imports
+GITHUB_FILES = {
+    'FEMALES': [
+        'Females_fdr_significant_high_freq_odds_ratio_analysis_45to64.csv',
+        'Females_fdr_significant_high_freq_odds_ratio_analysis_65plus.csv',
+        'Females_fdr_significant_high_freq_odds_ratio_analysis_below45.csv'
+    ],
+    'MALES': [
+        'Males_fdr_significant_high_freq_odds_ratio_analysis_45to64.csv',
+        'Males_fdr_significant_high_freq_odds_ratio_analysis_65plus.csv',
+        'Males_fdr_significant_high_freq_odds_ratio_analysis_below45.csv'
+    ]
+}
 
+# Function to get a readable name for the file selector
+def get_readable_filename(filename):
+    if '45to64' in filename:
+        return "Age 45-64"
+    elif '65plus' in filename:
+        return "Age 65+"
+    elif 'below45' in filename:
+        return "Age <45"
+    return filename
+
+def load_and_process_data(uploaded_file):
+    """Load and process the uploaded CSV file"""
+    try:
+        # If the file is uploaded via Streamlit's uploader
+        if hasattr(uploaded_file, 'getvalue'):
+            data = pd.read_csv(uploaded_file)
+            filename = uploaded_file.name.lower()
+        # If the file is from GitHub URL
+        else:
+            gender, filename = uploaded_file
+            github_url = f"https://raw.githubusercontent.com/gcosma/personalised_mltc/main/data/{gender}/{filename}"
+            response = requests.get(github_url)
+            response.raise_for_status()  # Raise an exception for bad status codes
+            data = pd.read_csv(StringIO(response.text))
+            filename = filename.lower()
+
+        total_patients = data['TotalPatientsInGroup'].iloc[0]
+
+        if 'females' in filename.lower():
+            gender = 'Female'
+        elif 'males' in filename.lower():
+            gender = 'Male'
+        else:
+            gender = 'Unknown Gender'
+
+        if 'below45' in filename:
+            age_group = '<45'
+        elif '45to64' in filename:
+            age_group = '45-64'
+        elif '65plus' in filename:
+            age_group = '65+'
+        else:
+            age_group = 'Unknown Age Group'
+
+        return data, total_patients, gender, age_group
+
+    except Exception as e:
+        st.error(f"Error loading file: {str(e)}")
+        return None, None, None, None
 def clear_session_state():
     """Clear all analysis results from session state when a new file is uploaded"""
     st.session_state.sensitivity_results = None

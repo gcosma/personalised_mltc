@@ -1113,7 +1113,7 @@ def add_footer():
 
 
 def main():
-    # Initialize session state for data persistence
+    # Initialize session state
     if 'sensitivity_results' not in st.session_state:
         st.session_state.sensitivity_results = None
     if 'network_html' not in st.session_state:
@@ -1154,7 +1154,7 @@ def main():
     if not check_password():
         st.stop()
 
-    # Custom CSS
+    # Add your existing CSS styles here
     st.markdown("""
         <style>
         .main {
@@ -1192,7 +1192,7 @@ def main():
             padding: 1rem;
             border-radius: 4px;
         }
-        div[data-testid="stFileUploader"] {
+        .file-selector {
             background-color: #f8f9fa;
             padding: 2rem;
             border-radius: 4px;
@@ -1205,62 +1205,59 @@ def main():
     st.title("🏥 DECODE: Multimorbidity Analysis Tool for people with ID and MLTC")
     st.markdown("""
     This tool helps analyse disease trajectories and comorbidity patterns in patient data.
-    Upload your data file to begin analysis.
+    Select a dataset to begin analysis.
     """)
 
     try:
-        # File uploader in a container
+        # File selector container
         with st.container():
-            uploaded_file = st.file_uploader(
-                "Choose a CSV file",
-                type="csv",
-                help="Upload a CSV file containing your patient data"
-            )
-
-        if uploaded_file is not None:
-            try:
-                with st.container():
-                    gender, selected_file = file_selector()
+            st.markdown('<div class="file-selector">', unsafe_allow_html=True)
+            gender, selected_file = file_selector()
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            if selected_file:
+                try:
+                    # Load the selected file from GitHub
+                    file_content = load_file_from_github(gender, selected_file)
                     
-                    if selected_file:
-                        try:
-                            # Load the selected file from GitHub
-                            file_content = load_file_from_github(gender, selected_file)
-                            
-                            if file_content:
-                                # Calculate hash of selected file
-                                current_hash = hash(selected_file)
-                                
-                                # Check if this is a new file
-                                if 'data_hash' not in st.session_state or current_hash != st.session_state.data_hash:
-                                    # Clear all session state variables
-                                    clear_session_state()
-                                    # Update the hash
-                                    st.session_state.data_hash = current_hash
-                                
-                                # Load and process data
-                                data, total_patients, gender, age_group = load_and_process_data(file_content)
-        
-                                if data is None:
-                                    st.error("Failed to load data. Please check the file format.")
-                                    st.stop()
+                    if file_content:
+                        # Calculate hash of selected file
+                        current_hash = hash(selected_file)
+                        
+                        # Check if this is a new file
+                        if 'data_hash' not in st.session_state or current_hash != st.session_state.data_hash:
+                            # Clear all session state variables
+                            clear_session_state()
+                            # Update the hash
+                            st.session_state.data_hash = current_hash
+                        
+                        # Load and process data
+                        data, total_patients, gender, age_group = load_and_process_data(file_content)
 
-                # Data summary in an info box
-                st.info(f"""
-                📊 **Data Summary**
-                - Total Patients: {total_patients:,}
-                - Gender: {gender}
-                - Age Group: {age_group}
-                """)
+                        if data is None:
+                            st.error("Failed to load data. Please check the file format.")
+                            st.stop()
 
-                # Create tabs with icons
-                tabs = st.tabs([
-                    "📈 Sensitivity Analysis",
-                    "🔍 Condition Combinations",
-                    "👤 Personalised Analysis",
-                    "🎯 Personalised Trajectory Filter",
-                    "🌐 Cohort Network"  
-                ])
+                        # Data summary in an info box
+                        st.info(f"""
+                        📊 **Data Summary**
+                        - Total Patients: {total_patients:,}
+                        - Gender: {gender}
+                        - Age Group: {age_group}
+                        """)
+
+                        # Create tabs with icons
+                        tabs = st.tabs([
+                            "📈 Sensitivity Analysis",
+                            "🔍 Condition Combinations",
+                            "👤 Personalised Analysis",
+                            "🎯 Personalised Trajectory Filter",
+                            "🌐 Cohort Network"
+                        ])
+
+
+
+                
 
                 # Sensitivity Analysis Tab
                 with tabs[0]:
@@ -1741,7 +1738,7 @@ def main():
                                     st.error(f"Error generating network visualization: {str(e)}")
             
             except Exception as e:
-                st.error(f"Error processing data: {str(e)}")
+                st.error(f"Error loading file: {str(e)}")
                 st.stop()
 
     except Exception as e:

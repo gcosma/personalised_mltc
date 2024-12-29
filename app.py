@@ -733,7 +733,7 @@ def create_personalized_analysis(data, patient_conditions, time_horizon=None, ti
 
 
     
-def create_network_visualization2(data, min_or, min_freq):
+def create_network_visualization(data, min_or, min_freq):
     """Create network visualization with legends with pastel colors matching paper style"""
     net = Network(height="800px", width="100%", bgcolor='white', font_color='black', directed=True)
     

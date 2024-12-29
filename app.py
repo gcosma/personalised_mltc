@@ -1228,19 +1228,47 @@ def main():
     """)
 
     try:
-        # File uploader in a container
+        # File selection container
         with st.container():
-            uploaded_file = st.file_uploader(
-                "Choose a CSV file",
-                type="csv",
-                help="Upload a CSV file containing your patient data"
+            file_source = st.radio(
+                "Choose data source:",
+                ["Upload File", "Use GitHub Data"],
+                help="Select whether to upload your own file or use pre-existing data from GitHub"
             )
+            
+            if file_source == "Upload File":
+                uploaded_file = st.file_uploader(
+                    "Choose a CSV file",
+                    type="csv",
+                    help="Upload a CSV file containing your patient data"
+                )
+            else:
+                col1, col2 = st.columns(2)
+                with col1:
+                    selected_gender = st.selectbox(
+                        "Select gender",
+                        list(GITHUB_FILES.keys()),
+                        format_func=lambda x: "Females" if x == "FEMALES" else "Males",
+                        help="Choose the gender folder"
+                    )
+                with col2:
+                    selected_file = st.selectbox(
+                        "Select age group",
+                        GITHUB_FILES[selected_gender],
+                        format_func=get_readable_filename,
+                        help="Choose from available datasets"
+                    )
+                uploaded_file = (selected_gender, selected_file)
 
         if uploaded_file is not None:
             try:
                 # Calculate hash of uploaded file
-                file_contents = uploaded_file.getvalue()
-                current_hash = hash(file_contents)
+                if hasattr(uploaded_file, 'getvalue'):
+                    file_contents = uploaded_file.getvalue()
+                    current_hash = hash(file_contents)
+                else:
+                    # For GitHub files, hash the combined gender and filename
+                    current_hash = hash(f"{uploaded_file[0]}_{uploaded_file[1]}")
                 
                 # Check if this is a new file
                 if 'data_hash' not in st.session_state or current_hash != st.session_state.data_hash:
@@ -1249,8 +1277,9 @@ def main():
                     # Update the hash
                     st.session_state.data_hash = current_hash
                 
-                # Reset file pointer after reading
-                uploaded_file.seek(0)
+                # Reset file pointer after reading if it's an uploaded file
+                if hasattr(uploaded_file, 'seek'):
+                    uploaded_file.seek(0)
                 
                 # Load and process data
                 data, total_patients, gender, age_group = load_and_process_data(uploaded_file)

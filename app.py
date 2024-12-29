@@ -17,21 +17,18 @@ import requests
 from io import StringIO
 
 # Add these after your imports
-GITHUB_BASE_URL = "https://raw.githubusercontent.com/gcosma/personalised_mltc/main/data"
-
-def get_github_files():
-    files = {}
-    for gender in ["Females", "Males"]:
-        response = requests.get(f"{GITHUB_BASE_URL}/{gender}")
-        if response.status_code == 200:
-            files[gender.upper()] = [
-                f for f in response.text.split("\n") 
-                if f.endswith(".csv") and "fdr_significant_high_freq_odds_ratio_analysis" in f
-            ]
-    return files
-
-# Call the function to populate GITHUB_FILES
-GITHUB_FILES = get_github_files()
+GITHUB_FILES = {
+    'FEMALES': [
+        'Females_fdr_significant_high_freq_odds_ratio_analysis_45to64.csv',
+        'Females_fdr_significant_high_freq_odds_ratio_analysis_65plus.csv',
+        'Females_fdr_significant_high_freq_odds_ratio_analysis_below45.csv'
+    ],
+    'MALES': [
+        'Males_fdr_significant_high_freq_odds_ratio_analysis_45to64.csv',
+        'Males_fdr_significant_high_freq_odds_ratio_analysis_65plus.csv',
+        'Males_fdr_significant_high_freq_odds_ratio_analysis_below45.csv'
+    ]
+}
 
 # Function to get a readable name for the file selector
 def get_readable_filename(filename):
@@ -46,10 +43,14 @@ def get_readable_filename(filename):
 def load_and_process_data(input_file):
     """Load and process the uploaded CSV file"""
     try:
+        # If the file is uploaded via Streamlit's uploader
+        if isinstance(input_file, (str, bytes)) or hasattr(input_file, 'getvalue'):
+            data = pd.read_csv(input_file)
+            filename = input_file.name.lower() if hasattr(input_file, 'name') else str(input_file).lower()
         # If the file is from GitHub URL (tuple of gender and filename)
-        if isinstance(input_file, tuple):
+        elif isinstance(input_file, tuple):
             gender, filename = input_file
-            github_url = f"{GITHUB_BASE_URL}/{gender}/{filename}"
+            github_url = f"https://raw.githubusercontent.com/gcosma/personalised_mltc/main/data/{gender}/{filename}"
             print(f"Attempting to load from URL: {github_url}")  # Debug print
             try:
                 response = requests.get(github_url)
@@ -91,7 +92,7 @@ def load_and_process_data(input_file):
         import traceback
         print(traceback.format_exc())  # Print full traceback
         return None, None, None, None
-        
+
 def clear_session_state():
     """Clear all analysis results from session state when a new file is uploaded"""
     st.session_state.sensitivity_results = None
@@ -1210,29 +1211,61 @@ def main():
     This tool helps analyse disease trajectories and comorbidity patterns in patient data.
     Upload your data file to begin analysis.
     """)
-    #####
+
     try:
         # File selection container
         with st.container():
-            col1, col2 = st.columns(2)
-            with col1:
-                selected_gender = st.selectbox(
-                    "Select gender",
-                    list(GITHUB_FILES.keys()),
-                    format_func=lambda x: "Females" if x == "FEMALES" else "Males",
-                    help="Choose the gender folder"
+            file_source = st.radio(
+                "Choose data source:",
+                ["Upload File", "Use GitHub Data"],
+                help="Select whether to upload your own file or use pre-existing data from GitHub"
+            )
+            
+            if file_source == "Upload File":
+                uploaded_file = st.file_uploader(
+                    "Choose a CSV file",
+                    type="csv",
+                    help="Upload a CSV file containing your patient data"
                 )
-            with col2:
-                selected_file = st.selectbox(
-                    "Select age group",
-                    GITHUB_FILES[selected_gender],
-                    format_func=get_readable_filename,
-                    help="Choose from available datasets"
-                )
-            uploaded_file = (selected_gender, selected_file)
+            else:
+                col1, col2 = st.columns(2)
+                with col1:
+                    selected_gender = st.selectbox(
+                        "Select gender",
+                        list(GITHUB_FILES.keys()),
+                        format_func=lambda x: "Females" if x == "FEMALES" else "Males",
+                        help="Choose the gender folder"
+                    )
+                with col2:
+                    selected_file = st.selectbox(
+                        "Select age group",
+                        GITHUB_FILES[selected_gender],
+                        format_func=get_readable_filename,
+                        help="Choose from available datasets"
+                    )
+                uploaded_file = (selected_gender, selected_file)
 
         if uploaded_file is not None:
             try:
+                # Calculate hash of uploaded file
+                if hasattr(uploaded_file, 'getvalue'):
+                    file_contents = uploaded_file.getvalue()
+                    current_hash = hash(file_contents)
+                else:
+                    # For GitHub files, hash the combined gender and filename
+                    current_hash = hash(f"{uploaded_file[0]}_{uploaded_file[1]}")
+                
+                # Check if this is a new file
+                if 'data_hash' not in st.session_state or current_hash != st.session_state.data_hash:
+                    # Clear all session state variables
+                    clear_session_state()
+                    # Update the hash
+                    st.session_state.data_hash = current_hash
+                
+                # Reset file pointer after reading if it's an uploaded file
+                if hasattr(uploaded_file, 'seek'):
+                    uploaded_file.seek(0)
+                
                 # Load and process data
                 data, total_patients, gender, age_group = load_and_process_data(uploaded_file)
 
@@ -1247,7 +1280,7 @@ def main():
                 - Gender: {gender}
                 - Age Group: {age_group}
                 """)
-   
+
                 # Create tabs with icons
                 tabs = st.tabs([
                     "📈 Sensitivity Analysis",

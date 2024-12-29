@@ -13,6 +13,9 @@ import base64
 from pathlib import Path
 from matplotlib import patches
 from itertools import combinations
+import requests
+from io import StringIO
+
 
 def clear_session_state():
     """Clear all analysis results from session state when a new file is uploaded"""

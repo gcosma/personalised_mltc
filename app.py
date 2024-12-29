@@ -40,6 +40,9 @@ def get_readable_filename(filename):
         return "Age <45"
     return filename
 
+# First, remove the second occurrence of load_and_process_data function
+# Keep only this version of the function:
+
 def load_and_process_data(input_file):
     """Load and process the uploaded CSV file"""
     try:
@@ -52,9 +55,14 @@ def load_and_process_data(input_file):
             gender, filename = input_file
             github_url = f"https://raw.githubusercontent.com/gcosma/personalised_mltc/main/data/{gender}/{filename}"
             print(f"Attempting to load from URL: {github_url}")  # Debug print
-            response = requests.get(github_url)
-            response.raise_for_status()  # Raise an exception for bad status codes
-            data = pd.read_csv(StringIO(response.text))
+            try:
+                response = requests.get(github_url)
+                response.raise_for_status()  # Raise an exception for bad status codes
+                print(f"Response status code: {response.status_code}")  # Debug print
+                data = pd.read_csv(StringIO(response.text))
+            except Exception as e:
+                print(f"Error fetching data: {str(e)}")  # Debug print
+                raise
         else:
             raise ValueError(f"Unsupported input type: {type(input_file)}")
 
@@ -84,6 +92,8 @@ def load_and_process_data(input_file):
     except Exception as e:
         st.error(f"Error loading file: {str(e)}")
         print(f"Detailed error: {str(e)}")  # Debug print
+        import traceback
+        print(traceback.format_exc())  # Print full traceback
         return None, None, None, None
 
 

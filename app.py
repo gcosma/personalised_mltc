@@ -16,7 +16,6 @@ from itertools import combinations
 import requests
 from io import StringIO
 
-
 # Add these after your imports
 GITHUB_BASE_URL = "https://raw.githubusercontent.com/gcosma/personalised_mltc/main/data"
 
@@ -31,6 +30,7 @@ def get_github_files():
             ]
     return files
 
+# Call the function to populate GITHUB_FILES
 GITHUB_FILES = get_github_files()
 
 # Function to get a readable name for the file selector

@@ -1669,50 +1669,82 @@ def main():
                                 except Exception as viz_error:
                                     st.error(f"Failed to generate network visualisation: {str(viz_error)}")
                                     st.session_state.network_html = None
-                
-                # Cohort Network Tab
+
+
+
+                # In the Cohort Network Tab section, replace the existing implementation with this:
                 with tabs[4]:
                     st.header("Cohort Network Analysis")
                     st.markdown("""
                     Visualize relationships between conditions as a network graph. 
                     Node colors represent body systems, and edge thickness indicates association strength.
                     """)
-
+                
                     main_col, control_col = st.columns([3, 1])
-
+                
                     with control_col:
                         with st.container():
                             st.markdown("### Control Panel")
                             
-                            # Sliders for filtering - note the unique keys "cohort_network_X"
+                            # Sliders for filtering
                             min_or = st.slider(
                                 "Minimum Odds Ratio",
                                 1.0, 10.0, 2.0, 0.1,
-                                key="cohort_network_min_or",  # Changed key
+                                key="cohort_network_min_or",
                                 help="Filter relationships by minimum odds ratio"
                             )
-
+                
                             min_freq = st.slider(
                                 "Minimum Pair Frequency",
                                 int(data['PairFrequency'].min()),
                                 int(data['PairFrequency'].max()),
                                 int(data['PairFrequency'].min()),
-                                key="cohort_network_min_freq",  # Changed key
+                                key="cohort_network_min_freq",
                                 help="Minimum number of occurrences required"
                             )
-
+                
                             generate_button = st.button(
                                 "🔄 Generate Network",
-                                key="cohort_network_generate",  # Changed key
+                                key="cohort_network_generate",
                                 help="Create network visualization"
                             )
-
+                
                     with main_col:
                         if generate_button:
                             with st.spinner("🌐 Generating network visualization..."):
                                 try:
+                                    # Calculate summary statistics
+                                    filtered_data = data[
+                                        (data['OddsRatio'] >= min_or) &
+                                        (data['PairFrequency'] >= min_freq)
+                                    ]
+                
+                                    summary_info = {
+                                        'sex': gender,
+                                        'age_group': age_group,
+                                        'total_patients': total_patients,
+                                        'odds_ratio_min': filtered_data['OddsRatio'].min(),
+                                        'odds_ratio_max': filtered_data['OddsRatio'].max(),
+                                        'min_prevalence': filtered_data['Percentage'].min(),
+                                        'min_prevalence_patients': int((filtered_data['Percentage'].min() * total_patients) / 100),
+                                        'condition_pairs': len(filtered_data),
+                                        'total_odds_ratio': filtered_data['OddsRatio'].sum()
+                                    }
+                
                                     # Create visualization
                                     html_content = create_network_visualization(data, min_or, min_freq)
+                                    
+                                    # Display summary information
+                                    st.info(f"""
+                                    **Filtered Condition Network (min OR: {min_or:.1f}, min frequency: {min_freq:.1f})**
+                                    **Sex:** {summary_info['sex']}. 
+                                    **Age group:** {summary_info['age_group']}. 
+                                    **Total patients with diagnoses in this group:** {summary_info['total_patients']:,}. 
+                                    **Odds ratio range:** [{summary_info['odds_ratio_min']:.2f} - {summary_info['odds_ratio_max']:.2f}]. 
+                                    **Observed minimum prevalence:** {summary_info['min_prevalence']:.2f}% ({summary_info['min_prevalence_patients']:,} patients). 
+                                    **Number of condition pairs shown:** {summary_info['condition_pairs']}. 
+                                    **Total sum of odds ratios:** {summary_info['total_odds_ratio']:.2f}.
+                                    """)
                                     
                                     # Display network
                                     st.components.v1.html(html_content, height=800)
@@ -1723,11 +1755,12 @@ def main():
                                         data=html_content,
                                         file_name="condition_network.html",
                                         mime="text/html",
-                                        key="cohort_network_download"  # Added key
+                                        key="cohort_network_download"
                                     )
                                     
                                 except Exception as e:
                                     st.error(f"Error generating network visualization: {str(e)}")
+                
             
             except Exception as e:
                 st.error(f"Error processing data: {str(e)}")

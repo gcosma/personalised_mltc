@@ -1585,66 +1585,58 @@ def main():
 
                         # Cohort Network Tab
                         with tabs[4]:
-                            st.header("Cohort Network Analysis")
-                            st.markdown("""
-                            Visualize relationships between conditions as a network graph. 
-                            Node colors represent body systems, and edge thickness indicates association strength.
-                            """)
+                st.header("Cohort Network Analysis")
+                st.markdown("""
+                Visualize relationships between conditions as a network graph. 
+                Node colors represent body systems, and edge thickness indicates association strength.
+                """)
 
-                            main_col, control_col = st.columns([3, 1])
+                main_col, control_col = st.columns([3, 1])
 
-                            with control_col:
-                                with st.container():
-                                    st.markdown("### Control Panel")
-                                    try:
-                                        min_or = st.slider(
-                                            "Minimum Odds Ratio",
-                                            1.0, 10.0, 2.0, 0.1,
-                                            key="cohort_network_min_or",
-                                            help="Filter relationships by minimum odds ratio"
-                                        )
+                with control_col:
+                    with st.container():
+                        st.markdown("### Control Panel")
+                        try:
+                            min_or = st.slider(
+                                "Minimum Odds Ratio",
+                                1.0, 10.0, 2.0, 0.1,
+                                key="cohort_network_min_or",
+                                help="Filter relationships by minimum odds ratio"
+                            )
 
-                                        min_freq = st.slider(
-                                            "Minimum Pair Frequency",
-                                            int(data['PairFrequency'].min()),
-                                            int(data['PairFrequency'].max()),
-                                            int(data['PairFrequency'].min()),
-                                            key="cohort_network_min_freq",
-                                            help="Minimum number of occurrences required"
-                                        )
+                            min_freq = st.slider(
+                                "Minimum Pair Frequency",
+                                int(data['PairFrequency'].min()),
+                                int(data['PairFrequency'].max()),
+                                int(data['PairFrequency'].min()),
+                                key="cohort_network_min_freq",
+                                help="Minimum number of occurrences required"
+                            )
 
-                                        generate_button = st.button(
-                                            "🔄 Generate Network",
-                                            key="cohort_network_generate",
-                                            help="Create network visualization"
-                                        )
-                                    except Exception as e:
-                                        st.error(f"Error setting up cohort parameters: {str(e)}")
+                            generate_button = st.button(
+                                "🔄 Generate Network",
+                                key="cohort_network_generate",
+                                help="Create network visualization"
+                            )
+                        except Exception as e:
+                            st.error(f"Error setting up cohort parameters: {str(e)}")
 
-                            with main_col:
-                                if generate_button:
-                                    with st.spinner("🌐 Generating network visualization..."):
-                                        try:
-                                            html_content = create_network_visualization(data, min_or, min_freq)
-                                            st.components.v1.html(html_content, height=800)
-                                            
-                                            st.download_button(
-                                                label="📥 Download Network Visualization",
-                                                data=html_content,
-                                                file_name="condition_network.html",
-                                                mime="text/html",
-                                                key="cohort_network_download"
-                                            )
-                                        except Exception as e:
-                                            st.error(f"Error generating network visualization: {str(e)}")
-
-                    except Exception as e:
-                        st.error(f"Error in tab processing: {str(e)}")
-                        st.stop()
-
-                except Exception as e:
-                    st.error(f"Error loading file: {str(e)}")
-                    st.stop()
+                with main_col:
+                    if generate_button:
+                        with st.spinner("🌐 Generating network visualization..."):
+                            try:
+                                html_content = create_network_visualization(data, min_or, min_freq)
+                                st.components.v1.html(html_content, height=800)
+                                
+                                st.download_button(
+                                    label="📥 Download Network Visualization",
+                                    data=html_content,
+                                    file_name="condition_network.html",
+                                    mime="text/html",
+                                    key="cohort_network_download"
+                                )
+                            except Exception as e:
+                                st.error(f"Error generating network visualization: {str(e)}")
 
         except Exception as e:
             st.error(f"Application error: {str(e)}")

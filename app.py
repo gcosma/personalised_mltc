@@ -1584,15 +1584,16 @@ def main():
                                             st.error(f"Failed to generate network visualization: {str(e)}")
 
                         # Cohort Network Tab
+# Cohort Network Tab
                         with tabs[4]:
                             st.header("Cohort Network Analysis")
                             st.markdown("""
                             Visualize relationships between conditions as a network graph. 
                             Node colors represent body systems, and edge thickness indicates association strength.
                             """)
-            
+
                             main_col, control_col = st.columns([3, 1])
-            
+
                             with control_col:
                                 with st.container():
                                     st.markdown("### Control Panel")
@@ -1603,7 +1604,7 @@ def main():
                                             key="cohort_network_min_or",
                                             help="Filter relationships by minimum odds ratio"
                                         )
-            
+
                                         min_freq = st.slider(
                                             "Minimum Pair Frequency",
                                             int(data['PairFrequency'].min()),
@@ -1612,7 +1613,7 @@ def main():
                                             key="cohort_network_min_freq",
                                             help="Minimum number of occurrences required"
                                         )
-            
+
                                         generate_button = st.button(
                                             "🔄 Generate Network",
                                             key="cohort_network_generate",
@@ -1620,7 +1621,7 @@ def main():
                                         )
                                     except Exception as e:
                                         st.error(f"Error setting up cohort parameters: {str(e)}")
-            
+
                             with main_col:
                                 if generate_button:
                                     with st.spinner("🌐 Generating network visualization..."):

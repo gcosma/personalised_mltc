@@ -96,8 +96,6 @@ def load_and_process_data(input_file):
         print(traceback.format_exc())  # Print full traceback
         return None, None, None, None
 
-
-
 def clear_session_state():
     """Clear all analysis results from session state when a new file is uploaded"""
     st.session_state.sensitivity_results = None
@@ -187,35 +185,6 @@ def parse_iqr(iqr_string):
     except:
         return 0.0, 0.0, 0.0
 
-def load_and_process_data(uploaded_file):
-    """Load and process the uploaded CSV file"""
-    try:
-        data = pd.read_csv(uploaded_file)
-        total_patients = data['TotalPatientsInGroup'].iloc[0]
-
-        filename = uploaded_file.name.lower()
-
-        if 'females' in filename:
-            gender = 'Female'
-        elif 'males' in filename:
-            gender = 'Male'
-        else:
-            gender = 'Unknown Gender'
-
-        if 'below45' in filename:
-            age_group = '<45'
-        elif '45to64' in filename:
-            age_group = '45-64'
-        elif '65plus' in filename:
-            age_group = '65+'
-        else:
-            age_group = 'Unknown Age Group'
-
-        return data, total_patients, gender, age_group
-
-    except Exception as e:
-        st.error(f"Error loading file: {str(e)}")
-        return None, None, None, None
 
 @st.cache_data
 def perform_sensitivity_analysis(data, top_n=5):

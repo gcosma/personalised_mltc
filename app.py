@@ -46,35 +46,26 @@ def get_readable_filename(filename):
 def load_and_process_data(input_file):
     """Load and process the uploaded CSV file"""
     try:
+        # If the file is uploaded via Streamlit's uploader
+        if isinstance(input_file, (str, bytes)) or hasattr(input_file, 'getvalue'):
+            data = pd.read_csv(input_file)
+            filename = input_file.name.lower() if hasattr(input_file, 'name') else str(input_file).lower()
         # If the file is from GitHub URL (tuple of gender and filename)
-        if isinstance(input_file, tuple):
+        elif isinstance(input_file, tuple):
             gender, filename = input_file
-            
-            # Validate that the filename matches the selected gender
-            if (gender == "FEMALES" and "Females" not in filename) or \
-               (gender == "MALES" and "Males" not in filename):
-                st.error(f"Filename {filename} does not match selected gender {gender}")
-                return None, None, None, None
-
             github_url = f"https://raw.githubusercontent.com/gcosma/personalised_mltc/main/data/{gender}/{filename}"
             print(f"Attempting to load from URL: {github_url}")  # Debug print
-            
             try:
-                # Use a session to potentially improve reliability
-                import requests
-                session = requests.Session()
-                response = session.get(github_url, timeout=10)
+                response = requests.get(github_url)
                 response.raise_for_status()  # Raise an exception for bad status codes
-                
                 print(f"Response status code: {response.status_code}")  # Debug print
                 data = pd.read_csv(StringIO(response.text))
-            
-            except requests.exceptions.RequestException as e:
-                st.error(f"Network error loading data: {str(e)}")
-                print(f"Detailed network error: {str(e)}")
-                return None, None, None, None
+            except Exception as e:
+                print(f"Error fetching data: {str(e)}")  # Debug print
+                raise
+        else:
+            raise ValueError(f"Unsupported input type: {type(input_file)}")
 
-        # Rest of the function remains the same
         total_patients = data['TotalPatientsInGroup'].iloc[0]
 
         # Determine gender and age group from filename
@@ -99,8 +90,8 @@ def load_and_process_data(input_file):
         return data, total_patients, gender, age_group
 
     except Exception as e:
-        st.error(f"Unexpected error loading file: {str(e)}")
-        print(f"Detailed error: {str(e)}")
+        st.error(f"Error loading file: {str(e)}")
+        print(f"Detailed error: {str(e)}")  # Debug print
         import traceback
         print(traceback.format_exc())  # Print full traceback
         return None, None, None, None
@@ -1232,7 +1223,7 @@ def main():
                 ["Upload File", "Use GitHub Data"],
                 help="Select whether to upload your own file or use pre-existing data from GitHub"
             )
-      
+            
             if file_source == "Upload File":
                 uploaded_file = st.file_uploader(
                     "Choose a CSV file",
@@ -1240,8 +1231,7 @@ def main():
                     help="Upload a CSV file containing your patient data"
                 )
             else:
-                col1, col2, col3 = st.columns([3, 3, 2])
-                
+                col1, col2 = st.columns(2)
                 with col1:
                     selected_gender = st.selectbox(
                         "Select gender",
@@ -1249,7 +1239,6 @@ def main():
                         format_func=lambda x: "Females" if x == "FEMALES" else "Males",
                         help="Choose the gender folder"
                     )
-                
                 with col2:
                     selected_file = st.selectbox(
                         "Select age group",
@@ -1257,21 +1246,7 @@ def main():
                         format_func=get_readable_filename,
                         help="Choose from available datasets"
                     )
-                
-                with col3:
-                    # Add a load button with a distinct key
-                    load_data_button = st.button(
-                        "🔍 Load Data", 
-                        key="github_data_load",
-                        help="Confirm and load the selected dataset"
-                    )
-                
-                # Initialize uploaded_file as None
-                uploaded_file = None
-                
-                # Only set uploaded_file when the button is pressed
-                if load_data_button:
-                    uploaded_file = (selected_gender, selected_file)
+                uploaded_file = (selected_gender, selected_file)
 
         if uploaded_file is not None:
             try:

@@ -44,53 +44,65 @@ def get_readable_filename(filename):
 # Keep only this version of the function:
 
 
-def load_and_process_data(input_file):
-    """Load and process the uploaded CSV file"""
+import streamlit as st
+import pandas as pd
+import requests
+from io import StringIO
+
+# Helper function to load data
+def load_and_process_data(gender, filename):
+    """Load data from GitHub URL based on gender and filename."""
     try:
-        if isinstance(input_file, (str, bytes)) or hasattr(input_file, 'getvalue'):
-            # For uploaded files via Streamlit's uploader
-            data = pd.read_csv(input_file)
-            filename = input_file.name.lower() if hasattr(input_file, 'name') else str(input_file).lower()
-
-        elif isinstance(input_file, tuple):
-            # For GitHub URLs (tuple of gender and filename)
-            gender, filename = input_file
-            github_url = f"https://raw.githubusercontent.com/gcosma/personalised_mltc/main/data/{gender}/{filename}"
-            print(f"Attempting to load from URL: {github_url}")  # Debug print
-
-            response = requests.get(github_url)
-            if response.status_code == 404:
-                raise FileNotFoundError(f"The file was not found: {github_url}")
-            response.raise_for_status()  # Raise for other bad status codes
-            
-            data = pd.read_csv(StringIO(response.text))
+        github_url = f"https://raw.githubusercontent.com/gcosma/personalised_mltc/main/data/{gender}/{filename}"
+        response = requests.get(github_url)
+        if response.status_code == 404:
+            raise FileNotFoundError(f"The file was not found: {github_url}")
+        response.raise_for_status()
         
-        else:
-            raise ValueError(f"Unsupported input type: {type(input_file)}")
-
+        data = pd.read_csv(StringIO(response.text))
         total_patients = data['TotalPatientsInGroup'].iloc[0]
 
-        # Infer gender and age group from filename
-        filename_lower = filename.lower()
-        gender = 'Female' if 'females' in filename_lower else 'Male' if 'males' in filename_lower else 'Unknown Gender'
-        age_group = (
-            '<45' if 'below45' in filename_lower else
-            '45-64' if '45to64' in filename_lower else
-            '65+' if '65plus' in filename_lower else 'Unknown Age Group'
-        )
-
-        return data, total_patients, gender, age_group
-
-    except FileNotFoundError as e:
-        st.error(f"Error: File not found. Please verify the file path or GitHub URL.\n{str(e)}")
-        print(f"FileNotFoundError: {str(e)}")  # Debug print
-        return None, None, None, None
+        return data, total_patients
     except Exception as e:
-        st.error(f"Error loading file: {str(e)}")
-        print(f"General error: {str(e)}")  # Debug print
-        import traceback
-        print(traceback.format_exc())  # Debug trace
-        return None, None, None, None
+        st.error(f"Error loading file: {e}")
+        return None, None
+
+# Initialize session state
+if "selected_folder" not in st.session_state:
+    st.session_state.selected_folder = None
+if "selected_file" not in st.session_state:
+    st.session_state.selected_file = None
+
+# Select folder
+folder = st.selectbox("Select folder (gender):", ["MALES", "FEMALES"], key="selected_folder")
+
+# Reset file selection if folder changes
+if folder != st.session_state.selected_folder:
+    st.session_state.selected_folder = folder
+    st.session_state.selected_file = None  # Reset file selection
+
+# Select file
+file_options = {
+    "MALES": [
+        "Males_fdr_significant_high_freq_odds_ratio_analysis_below45.csv",
+        "Males_fdr_significant_high_freq_odds_ratio_analysis_45to64.csv",
+        "Males_fdr_significant_high_freq_odds_ratio_analysis_65plus.csv",
+    ],
+    "FEMALES": [
+        "Females_fdr_significant_high_freq_odds_ratio_analysis_below45.csv",
+        "Females_fdr_significant_high_freq_odds_ratio_analysis_45to64.csv",
+        "Females_fdr_significant_high_freq_odds_ratio_analysis_65plus.csv",
+    ],
+}
+file = st.selectbox("Select file:", file_options[folder], key="selected_file")
+
+# Load and display data
+if st.button("Load Data"):
+    data, total_patients = load_and_process_data(folder, file)
+    if data is not None:
+        st.write(f"Loaded data for folder: {folder}, file: {file}")
+        st.write(f"Total Patients: {total_patients}")
+        st.dataframe(data)
 
 
 def load_and_process_data2(input_file):

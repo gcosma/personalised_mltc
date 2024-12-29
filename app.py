@@ -179,6 +179,44 @@ def perform_sensitivity_analysis(data, top_n=5):
 
     return pd.DataFrame(results)
 
+def create_patient_count_legend(G):
+    """Create a dynamic patient count legend based on actual data values"""
+    # Extract pair frequencies from graph edges
+    pair_frequencies = [data['pair_frequency'] for _, _, data in G.edges(data=True)]
+    
+    if len(pair_frequencies) == 0:
+        return """<div>No data available for legend</div>"""
+    
+    # Calculate percentiles for the ranges
+    percentiles = np.percentile(pair_frequencies, [0, 20, 40, 60, 80, 100])
+    
+    # Format values to integers
+    percentiles = [int(round(p)) for p in percentiles]  # Round to nearest integer
+    
+    legend_html = """
+    <div style='position: absolute; top: 10px; right: 10px; background: white; padding: 10px; 
+            border: 1px solid #ccc; font-size: 12px; z-index: 1000; box-shadow: 2px 2px 4px rgba(0,0,0,0.1);'>
+        <div style='font-weight: bold; margin-bottom: 5px;'>Patient Count Ranges</div>
+    """
+    
+    # Add first four ranges
+    for i in range(4):
+        legend_html += f"""
+        <div style='margin: 5px 0;'>
+            <div style='border-bottom: {i+1}px solid black; width: 40px; display: inline-block; margin-right: 5px;'></div>
+            {percentiles[i]} ≤ Patients < {percentiles[i+1]} ({i*20}% - {(i+1)*20}%)</div>
+        """
+    
+    # Add the final range
+    legend_html += f"""
+        <div style='margin: 5px 0;'>
+            <div style='border-bottom: 5px solid black; width: 40px; display: inline-block; margin-right: 5px;'></div>
+            Patients ≥ {percentiles[4]} (80%+)</div>
+        </div>
+    """
+    
+    return legend_html
+    
 @st.cache_data
 def create_network_graph(data, patient_conditions, min_or, time_horizon=None, time_margin=None):
     """Create network graph for trajectory visualization with legend"""

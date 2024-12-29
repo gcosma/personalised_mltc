@@ -1111,7 +1111,6 @@ def add_footer():
         unsafe_allow_html=True
     )  
 
-
 def main():
     # Initialize session state
     if 'sensitivity_results' not in st.session_state:
@@ -1638,6 +1637,10 @@ def main():
                                         except Exception as e:
                                             st.error(f"Error generating network visualization: {str(e)}")
 
+                    except Exception as e:
+                        st.error(f"Error handling tabs: {str(e)}")
+                        st.stop()
+
                 except Exception as e:
                     st.error(f"Error loading file: {str(e)}")
                     st.stop()
@@ -1650,3 +1653,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

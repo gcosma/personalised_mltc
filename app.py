@@ -17,66 +17,53 @@ import requests
 from io import StringIO
 
 # Add these after your imports
-GITHUB_FILES = {
-    'FEMALES': [
-        'Females_45to64.csv',
-        'Females__65plus.csv',
-        'Females_below45.csv'
-    ],
-    'MALES': [
-        'Males_45to64.csv',
-        'Males_65plus.csv',
-        'Males_below45.csv'
-    ]
-}
+CSV_FILES = [
+    'Females_45to64.csv',
+    'Females_65plus.csv', 
+    'Females_below45.csv',
+    'Males_45to64.csv',
+    'Males_65plus.csv',
+    'Males_below45.csv'
+]
 
 # Function to get a readable name for the file selector
 def get_readable_filename(filename):
     if '45to64' in filename:
         return "Age 45-64"
     elif '65plus' in filename:
-        return "Age 65+"
+        return "Age 65+"  
     elif 'below45' in filename:
         return "Age <45"
     return filename
 
 def load_and_process_data(input_file):
-    """Load and process the uploaded CSV file"""
+    """Load and process the selected CSV file"""
     try:
-        # If the file is uploaded via Streamlit's uploader
-        if isinstance(input_file, (str, bytes)) or hasattr(input_file, 'getvalue'):
-            data = pd.read_csv(input_file)
-            filename = input_file.name.lower() if hasattr(input_file, 'name') else str(input_file).lower()
-        # If the file is from GitHub URL (tuple of gender and filename)
-        elif isinstance(input_file, tuple):
-            gender, filename = input_file
-            github_url = f"https://raw.githubusercontent.com/gcosma/personalised_mltc/main/data/{gender}/{filename}"
-            print(f"Attempting to load from URL: {github_url}")  # Debug print
-            try:
-                response = requests.get(github_url)
-                response.raise_for_status()  # Raise an exception for bad status codes
-                print(f"Response status code: {response.status_code}")  # Debug print
-                data = pd.read_csv(StringIO(response.text))
-            except Exception as e:
-                print(f"Error fetching data: {str(e)}")  # Debug print
-                raise
-        else:
-            raise ValueError(f"Unsupported input type: {type(input_file)}")
+        github_url = f"https://raw.githubusercontent.com/gcosma/personalised_mltc/main/data/{input_file}"
+        print(f"Attempting to load from URL: {github_url}")  # Debug print
+        try:
+            response = requests.get(github_url)
+            response.raise_for_status()  # Raise an exception for bad status codes  
+            print(f"Response status code: {response.status_code}")  # Debug print
+            data = pd.read_csv(StringIO(response.text))
+        except Exception as e:
+            print(f"Error fetching data: {str(e)}")  # Debug print   
+            raise
 
         total_patients = data['TotalPatientsInGroup'].iloc[0]
 
-        # Determine gender and age group from filename
-        filename_lower = filename.lower()
+        # Determine gender and age group from filename  
+        filename_lower = input_file.lower()
         
         if 'females' in filename_lower:
             gender = 'Female'
-        elif 'males' in filename_lower:
+        elif 'males' in filename_lower: 
             gender = 'Male'
         else:
             gender = 'Unknown Gender'
 
         if 'below45' in filename_lower:
-            age_group = '<45'
+            age_group = '<45' 
         elif '45to64' in filename_lower:
             age_group = '45-64'
         elif '65plus' in filename_lower:
@@ -89,7 +76,7 @@ def load_and_process_data(input_file):
     except Exception as e:
         st.error(f"Error loading file: {str(e)}")
         print(f"Detailed error: {str(e)}")  # Debug print
-        import traceback
+        import traceback 
         print(traceback.format_exc())  # Print full traceback
         return None, None, None, None
 
@@ -1213,73 +1200,44 @@ def main():
     """)
 
     try:
+        try:
         # File selection container
         with st.container():
-            file_source = st.radio(
-                "Choose data source:",
-                ["Upload File", "Use GitHub Data"],
-                help="Select whether to upload your own file or use pre-existing data from GitHub"
+            selected_file = st.selectbox(
+                "Select dataset", 
+                CSV_FILES,
+                format_func=get_readable_filename, 
+                help="Choose from available datasets"
             )
             
-            if file_source == "Upload File":
-                uploaded_file = st.file_uploader(
-                    "Choose a CSV file",
-                    type="csv",
-                    help="Upload a CSV file containing your patient data"
-                )
-            else:
-                col1, col2 = st.columns(2)
-                with col1:
-                    selected_gender = st.selectbox(
-                        "Select gender",
-                        list(GITHUB_FILES.keys()),
-                        format_func=lambda x: "Females" if x == "FEMALES" else "Males",
-                        help="Choose the gender folder"
-                    )
-                with col2:
-                    selected_file = st.selectbox(
-                        "Select age group",
-                        GITHUB_FILES[selected_gender],
-                        format_func=get_readable_filename,
-                        help="Choose from available datasets"
-                    )
-                uploaded_file = (selected_gender, selected_file)
-
-        if uploaded_file is not None:
+        if selected_file:
             try:
-                # Calculate hash of uploaded file
-                if hasattr(uploaded_file, 'getvalue'):
-                    file_contents = uploaded_file.getvalue()
-                    current_hash = hash(file_contents)
-                else:
-                    # For GitHub files, hash the combined gender and filename
-                    current_hash = hash(f"{uploaded_file[0]}_{uploaded_file[1]}")
+                # Calculate hash of selected file  
+                current_hash = hash(selected_file)
                 
                 # Check if this is a new file
                 if 'data_hash' not in st.session_state or current_hash != st.session_state.data_hash:
-                    # Clear all session state variables
+                    # Clear all session state variables 
                     clear_session_state()
                     # Update the hash
                     st.session_state.data_hash = current_hash
                 
-                # Reset file pointer after reading if it's an uploaded file
-                if hasattr(uploaded_file, 'seek'):
-                    uploaded_file.seek(0)
-                
                 # Load and process data
-                data, total_patients, gender, age_group = load_and_process_data(uploaded_file)
-
+                data, total_patients, gender, age_group = load_and_process_data(selected_file)
+                
                 if data is None:
-                    st.error("Failed to load data. Please check your file format.")
+                    st.error("Failed to load data. Please check your file selection.")
                     st.stop()
-
+                
                 # Data summary in an info box
                 st.info(f"""
-                📊 **Data Summary**
+                📊 **Data Summary**  
                 - Total Patients: {total_patients:,}
                 - Gender: {gender}
                 - Age Group: {age_group}
                 """)
+
+
 
                 # Create tabs with icons
                 tabs = st.tabs([

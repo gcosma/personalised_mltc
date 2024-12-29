@@ -40,64 +40,7 @@ def get_readable_filename(filename):
         return "Age <45"
     return filename
 
-
-# Helper function to load data
-def load_and_process_data(gender, filename):
-    """Load data from GitHub URL based on gender and filename."""
-    try:
-        github_url = f"https://raw.githubusercontent.com/gcosma/personalised_mltc/main/data/{gender}/{filename}"
-        response = requests.get(github_url)
-        if response.status_code == 404:
-            raise FileNotFoundError(f"The file was not found: {github_url}")
-        response.raise_for_status()
-        
-        data = pd.read_csv(StringIO(response.text))
-        total_patients = data['TotalPatientsInGroup'].iloc[0]
-
-        return data, total_patients
-    except Exception as e:
-        st.error(f"Error loading file: {e}")
-        return None, None
-
-# Initialize session state
-if "selected_folder" not in st.session_state:
-    st.session_state.selected_folder = None
-if "selected_file" not in st.session_state:
-    st.session_state.selected_file = None
-
-# Select folder
-folder = st.selectbox("Select folder (gender):", ["MALES", "FEMALES"], key="selected_folder")
-
-# Reset file selection if folder changes
-if folder != st.session_state.selected_folder:
-    st.session_state.selected_folder = folder
-    st.session_state.selected_file = None  # Reset file selection
-
-# Select file
-file_options = {
-    "MALES": [
-        "Males_fdr_significant_high_freq_odds_ratio_analysis_below45.csv",
-        "Males_fdr_significant_high_freq_odds_ratio_analysis_45to64.csv",
-        "Males_fdr_significant_high_freq_odds_ratio_analysis_65plus.csv",
-    ],
-    "FEMALES": [
-        "Females_fdr_significant_high_freq_odds_ratio_analysis_below45.csv",
-        "Females_fdr_significant_high_freq_odds_ratio_analysis_45to64.csv",
-        "Females_fdr_significant_high_freq_odds_ratio_analysis_65plus.csv",
-    ],
-}
-file = st.selectbox("Select file:", file_options[folder], key="selected_file")
-
-# Load and display data
-if st.button("Load Data"):
-    data, total_patients = load_and_process_data(folder, file)
-    if data is not None:
-        st.write(f"Loaded data for folder: {folder}, file: {file}")
-        st.write(f"Total Patients: {total_patients}")
-        st.dataframe(data)
-
-
-def load_and_process_data2(input_file):
+def load_and_process_data(input_file):
     """Load and process the uploaded CSV file"""
     try:
         # If the file is uploaded via Streamlit's uploader

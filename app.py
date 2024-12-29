@@ -17,19 +17,41 @@ import requests
 from io import StringIO
 
 # Add these after your imports
-GITHUB_FILES = {
-    'FEMALES': [
-        'Females_fdr_significant_high_freq_odds_ratio_analysis_45to64.csv',
-        'Females_fdr_significant_high_freq_odds_ratio_analysis_65plus.csv',
-        'Females_fdr_significant_high_freq_odds_ratio_analysis_below45.csv'
-    ],
-    'MALES': [
-        'Males_fdr_significant_high_freq_odds_ratio_analysis_45to64.csv',
-        'Males_fdr_significant_high_freq_odds_ratio_analysis_65plus.csv',
-        'Males_fdr_significant_high_freq_odds_ratio_analysis_below45.csv'
-    ]
-}
+import requests
+from io import StringIO
 
+# Replace the existing GITHUB_FILES dictionary with a function to fetch files
+def get_github_files():
+    """Fetch list of CSV files from the GitHub data folder"""
+    base_url = "https://api.github.com/repos/gcosma/personalised_mltc/contents/data"
+    
+    try:
+        # Fetch the contents of the data folder
+        response = requests.get(base_url)
+        response.raise_for_status()
+        
+        # Extract CSV files
+        csv_files = [
+            file['name'] for file in response.json() 
+            if file['type'] == 'file' and file['name'].endswith('.csv')
+        ]
+        
+        return sorted(csv_files)
+    
+    except Exception as e:
+        st.error(f"Error fetching files from GitHub: {str(e)}")
+        return []
+
+# In the main function, modify the file selection part
+else:
+    available_files = get_github_files()
+    selected_file = st.selectbox(
+        "Select data file",
+        available_files,
+        format_func=get_readable_filename,
+        help="Choose from available datasets in the GitHub repository"
+    )
+    uploaded_file = selected_file
 # Function to get a readable name for the file selector
 def get_readable_filename(filename):
     if '45to64' in filename:

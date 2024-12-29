@@ -1670,9 +1670,6 @@ def main():
                                     st.error(f"Failed to generate network visualisation: {str(viz_error)}")
                                     st.session_state.network_html = None
 
-
-
-                # In the Cohort Network Tab section, replace the existing implementation with this:
                 with tabs[4]:
                     st.header("Cohort Network Analysis")
                     st.markdown("""
@@ -1686,19 +1683,23 @@ def main():
                         with st.container():
                             st.markdown("### Control Panel")
                             
+                            # Dynamically set slider ranges based on the loaded data
+                            min_or_range = (data['OddsRatio'].min(), data['OddsRatio'].max())
+                            min_freq_range = (data['PairFrequency'].min(), data['PairFrequency'].max())
+                            
                             # Sliders for filtering
                             min_or = st.slider(
                                 "Minimum Odds Ratio",
-                                1.0, 10.0, 2.0, 0.1,
+                                float(min_or_range[0]), float(min_or_range[1]), 2.0, 0.1,
                                 key="cohort_network_min_or",
                                 help="Filter relationships by minimum odds ratio"
                             )
                 
                             min_freq = st.slider(
                                 "Minimum Pair Frequency",
-                                int(data['PairFrequency'].min()),
-                                int(data['PairFrequency'].max()),
-                                int(data['PairFrequency'].min()),
+                                int(min_freq_range[0]),
+                                int(min_freq_range[1]),
+                                int(min_freq_range[0]),
                                 key="cohort_network_min_freq",
                                 help="Minimum number of occurrences required"
                             )
@@ -1718,6 +1719,11 @@ def main():
                                         (data['OddsRatio'] >= min_or) &
                                         (data['PairFrequency'] >= min_freq)
                                     ]
+                
+                                    # Add a check to ensure filtered_data is not empty
+                                    if filtered_data.empty:
+                                        st.warning("No data matches the current filter criteria. Please adjust the sliders.")
+                                        return
                 
                                     summary_info = {
                                         'sex': gender,
@@ -1761,7 +1767,6 @@ def main():
                                 except Exception as e:
                                     st.error(f"Error generating network visualization: {str(e)}")
                 
-            
             except Exception as e:
                 st.error(f"Error processing data: {str(e)}")
                 st.stop()

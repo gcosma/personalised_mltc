@@ -13,6 +13,8 @@ import base64
 from pathlib import Path
 from matplotlib import patches
 from itertools import combinations
+import requests
+from io import StringIO
 
 def clear_session_state():
     """Clear all analysis results from session state when a new file is uploaded"""
@@ -102,14 +104,58 @@ def parse_iqr(iqr_string):
         return float(median_str), float(q1), float(q3)
     except:
         return 0.0, 0.0, 0.0
+GITHUB_RAW_URL = "https://raw.githubusercontent.com/gcosma/personalised_mltc/main/data"
+AVAILABLE_FILES = {
+    "Males": [
+        "males_below45_trajectories.csv",
+        "males_45to64_trajectories.csv",
+        "males_65plus_trajectories.csv"
+    ],
+    "Females": [
+        "females_below45_trajectories.csv",
+        "females_45to64_trajectories.csv",
+        "females_65plus_trajectories.csv"
+    ]
+}
 
-def load_and_process_data(uploaded_file):
-    """Load and process the uploaded CSV file"""
+def load_file_from_github(gender, filename):
+    """Load a file directly from GitHub"""
     try:
-        data = pd.read_csv(uploaded_file)
+        url = f"{GITHUB_RAW_URL}/{gender.upper()}/{filename}"
+        response = requests.get(url)
+        response.raise_for_status()  # Raise an exception for bad status codes
+        return StringIO(response.text)
+    except Exception as e:
+        st.error(f"Error loading file from GitHub: {str(e)}")
+        return None
+
+def file_selector():
+    """Create a file selector widget"""
+    # First select gender
+    gender = st.selectbox(
+        "Select Gender",
+        options=["Males", "Females"],
+        key="gender_selector"
+    )
+    
+    # Then select the specific file for that gender
+    selected_file = st.selectbox(
+        "Select Age Group",
+        options=AVAILABLE_FILES[gender],
+        key="file_selector"
+    )
+    
+    return gender, selected_file
+    
+# Also modify the load_and_process_data function to handle StringIO objects
+def load_and_process_data(file_content):
+    """Load and process the data file"""
+    try:
+        data = pd.read_csv(file_content)
         total_patients = data['TotalPatientsInGroup'].iloc[0]
 
-        filename = uploaded_file.name.lower()
+        # Get gender and age group from the filename stored in session state
+        filename = st.session_state.file_selector.lower()
 
         if 'females' in filename:
             gender = 'Female'
@@ -132,7 +178,7 @@ def load_and_process_data(uploaded_file):
     except Exception as e:
         st.error(f"Error loading file: {str(e)}")
         return None, None, None, None
-
+        
 @st.cache_data
 def perform_sensitivity_analysis(data, top_n=5):
     """Perform sensitivity analysis with configurable number of top trajectories"""
@@ -1173,26 +1219,31 @@ def main():
 
         if uploaded_file is not None:
             try:
-                # Calculate hash of uploaded file
-                file_contents = uploaded_file.getvalue()
-                current_hash = hash(file_contents)
-                
-                # Check if this is a new file
-                if 'data_hash' not in st.session_state or current_hash != st.session_state.data_hash:
-                    # Clear all session state variables
-                    clear_session_state()
-                    # Update the hash
-                    st.session_state.data_hash = current_hash
-                
-                # Reset file pointer after reading
-                uploaded_file.seek(0)
-                
-                # Load and process data
-                data, total_patients, gender, age_group = load_and_process_data(uploaded_file)
-
-                if data is None:
-                    st.error("Failed to load data. Please check your file format.")
-                    st.stop()
+                with st.container():
+                    gender, selected_file = file_selector()
+                    
+                    if selected_file:
+                        try:
+                            # Load the selected file from GitHub
+                            file_content = load_file_from_github(gender, selected_file)
+                            
+                            if file_content:
+                                # Calculate hash of selected file
+                                current_hash = hash(selected_file)
+                                
+                                # Check if this is a new file
+                                if 'data_hash' not in st.session_state or current_hash != st.session_state.data_hash:
+                                    # Clear all session state variables
+                                    clear_session_state()
+                                    # Update the hash
+                                    st.session_state.data_hash = current_hash
+                                
+                                # Load and process data
+                                data, total_patients, gender, age_group = load_and_process_data(file_content)
+        
+                                if data is None:
+                                    st.error("Failed to load data. Please check the file format.")
+                                    st.stop()
 
                 # Data summary in an info box
                 st.info(f"""

@@ -40,36 +40,41 @@ def get_readable_filename(filename):
         return "Age <45"
     return filename
 
-def load_and_process_data(uploaded_file):
+def load_and_process_data(input_file):
     """Load and process the uploaded CSV file"""
     try:
         # If the file is uploaded via Streamlit's uploader
-        if hasattr(uploaded_file, 'getvalue'):
-            data = pd.read_csv(uploaded_file)
-            filename = uploaded_file.name.lower()
-        # If the file is from GitHub URL
-        else:
-            gender, filename = uploaded_file
+        if isinstance(input_file, (str, bytes)) or hasattr(input_file, 'getvalue'):
+            data = pd.read_csv(input_file)
+            filename = input_file.name.lower() if hasattr(input_file, 'name') else str(input_file).lower()
+        # If the file is from GitHub URL (tuple of gender and filename)
+        elif isinstance(input_file, tuple):
+            gender, filename = input_file
             github_url = f"https://raw.githubusercontent.com/gcosma/personalised_mltc/main/data/{gender}/{filename}"
+            print(f"Attempting to load from URL: {github_url}")  # Debug print
             response = requests.get(github_url)
             response.raise_for_status()  # Raise an exception for bad status codes
             data = pd.read_csv(StringIO(response.text))
-            filename = filename.lower()
+        else:
+            raise ValueError(f"Unsupported input type: {type(input_file)}")
 
         total_patients = data['TotalPatientsInGroup'].iloc[0]
 
-        if 'females' in filename.lower():
+        # Determine gender and age group from filename
+        filename_lower = filename.lower()
+        
+        if 'females' in filename_lower:
             gender = 'Female'
-        elif 'males' in filename.lower():
+        elif 'males' in filename_lower:
             gender = 'Male'
         else:
             gender = 'Unknown Gender'
 
-        if 'below45' in filename:
+        if 'below45' in filename_lower:
             age_group = '<45'
-        elif '45to64' in filename:
+        elif '45to64' in filename_lower:
             age_group = '45-64'
-        elif '65plus' in filename:
+        elif '65plus' in filename_lower:
             age_group = '65+'
         else:
             age_group = 'Unknown Age Group'
@@ -78,7 +83,11 @@ def load_and_process_data(uploaded_file):
 
     except Exception as e:
         st.error(f"Error loading file: {str(e)}")
+        print(f"Detailed error: {str(e)}")  # Debug print
         return None, None, None, None
+
+
+
 def clear_session_state():
     """Clear all analysis results from session state when a new file is uploaded"""
     st.session_state.sensitivity_results = None

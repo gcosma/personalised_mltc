@@ -40,14 +40,6 @@ def get_readable_filename(filename):
         return "Age <45"
     return filename
 
-# First, remove the second occurrence of load_and_process_data function
-# Keep only this version of the function:
-
-
-import streamlit as st
-import pandas as pd
-import requests
-from io import StringIO
 
 # Helper function to load data
 def load_and_process_data(gender, filename):

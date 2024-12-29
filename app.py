@@ -1232,7 +1232,7 @@ def main():
                 ["Upload File", "Use GitHub Data"],
                 help="Select whether to upload your own file or use pre-existing data from GitHub"
             )
-            
+      
             if file_source == "Upload File":
                 uploaded_file = st.file_uploader(
                     "Choose a CSV file",
@@ -1240,7 +1240,8 @@ def main():
                     help="Upload a CSV file containing your patient data"
                 )
             else:
-                col1, col2 = st.columns(2)
+                col1, col2, col3 = st.columns([3, 3, 2])
+                
                 with col1:
                     selected_gender = st.selectbox(
                         "Select gender",
@@ -1248,6 +1249,7 @@ def main():
                         format_func=lambda x: "Females" if x == "FEMALES" else "Males",
                         help="Choose the gender folder"
                     )
+                
                 with col2:
                     selected_file = st.selectbox(
                         "Select age group",
@@ -1255,7 +1257,21 @@ def main():
                         format_func=get_readable_filename,
                         help="Choose from available datasets"
                     )
-                uploaded_file = (selected_gender, selected_file)
+                
+                with col3:
+                    # Add a load button with a distinct key
+                    load_data_button = st.button(
+                        "🔍 Load Data", 
+                        key="github_data_load",
+                        help="Confirm and load the selected dataset"
+                    )
+                
+                # Initialize uploaded_file as None
+                uploaded_file = None
+                
+                # Only set uploaded_file when the button is pressed
+                if load_data_button:
+                    uploaded_file = (selected_gender, selected_file)
 
         if uploaded_file is not None:
             try:

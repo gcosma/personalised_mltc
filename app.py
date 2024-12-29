@@ -46,26 +46,35 @@ def get_readable_filename(filename):
 def load_and_process_data(input_file):
     """Load and process the uploaded CSV file"""
     try:
-        # If the file is uploaded via Streamlit's uploader
-        if isinstance(input_file, (str, bytes)) or hasattr(input_file, 'getvalue'):
-            data = pd.read_csv(input_file)
-            filename = input_file.name.lower() if hasattr(input_file, 'name') else str(input_file).lower()
         # If the file is from GitHub URL (tuple of gender and filename)
-        elif isinstance(input_file, tuple):
+        if isinstance(input_file, tuple):
             gender, filename = input_file
+            
+            # Validate that the filename matches the selected gender
+            if (gender == "FEMALES" and "Females" not in filename) or \
+               (gender == "MALES" and "Males" not in filename):
+                st.error(f"Filename {filename} does not match selected gender {gender}")
+                return None, None, None, None
+
             github_url = f"https://raw.githubusercontent.com/gcosma/personalised_mltc/main/data/{gender}/{filename}"
             print(f"Attempting to load from URL: {github_url}")  # Debug print
+            
             try:
-                response = requests.get(github_url)
+                # Use a session to potentially improve reliability
+                import requests
+                session = requests.Session()
+                response = session.get(github_url, timeout=10)
                 response.raise_for_status()  # Raise an exception for bad status codes
+                
                 print(f"Response status code: {response.status_code}")  # Debug print
                 data = pd.read_csv(StringIO(response.text))
-            except Exception as e:
-                print(f"Error fetching data: {str(e)}")  # Debug print
-                raise
-        else:
-            raise ValueError(f"Unsupported input type: {type(input_file)}")
+            
+            except requests.exceptions.RequestException as e:
+                st.error(f"Network error loading data: {str(e)}")
+                print(f"Detailed network error: {str(e)}")
+                return None, None, None, None
 
+        # Rest of the function remains the same
         total_patients = data['TotalPatientsInGroup'].iloc[0]
 
         # Determine gender and age group from filename
@@ -90,8 +99,8 @@ def load_and_process_data(input_file):
         return data, total_patients, gender, age_group
 
     except Exception as e:
-        st.error(f"Error loading file: {str(e)}")
-        print(f"Detailed error: {str(e)}")  # Debug print
+        st.error(f"Unexpected error loading file: {str(e)}")
+        print(f"Detailed error: {str(e)}")
         import traceback
         print(traceback.format_exc())  # Print full traceback
         return None, None, None, None

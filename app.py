@@ -16,7 +16,6 @@ from itertools import combinations
 import requests
 from io import StringIO
 
-# Add these after your imports
 CSV_FILES = [
     'Females_45to64.csv',
     'Females_65plus.csv', 
@@ -26,15 +25,21 @@ CSV_FILES = [
     'Males_below45.csv'
 ]
 
-# Function to get a readable name for the file selector
 def get_readable_filename(filename):
-    if '45to64' in filename:
-        return "Age 45-64"
-    elif '65plus' in filename:
-        return "Age 65+"  
-    elif 'below45' in filename:
-        return "Age <45"
-    return filename
+    if filename == 'Females_45to64.csv':
+        return 'Females 45 to 64 years'
+    elif filename == 'Females_65plus.csv':
+        return 'Females 65 years and over'
+    elif filename == 'Females_below45.csv':
+        return 'Females below 45 years'
+    elif filename == 'Males_45to64.csv':
+        return 'Males 45 to 64 years'
+    elif filename == 'Males_65plus.csv':
+        return 'Males 65 years and over'
+    elif filename == 'Males_below45.csv':
+        return 'Males below 45 years'
+    else:
+        return filename
 
 def load_and_process_data(input_file):
     """Load and process the selected CSV file"""
@@ -79,7 +84,6 @@ def load_and_process_data(input_file):
         import traceback 
         print(traceback.format_exc())  # Print full traceback
         return None, None, None, None
-
 def clear_session_state():
     """Clear all analysis results from session state when a new file is uploaded"""
     st.session_state.sensitivity_results = None
@@ -141,7 +145,7 @@ condition_categories = {
     "Psoriasis": "Skin"
 }
 
-# 2. Add this SYSTEM_COLORS dictionary after the condition_categories:
+
 SYSTEM_COLORS = {
     "Blood": "#DC143C",        # Crimson
     "Circulatory": "#FF4500",  # Orange Red

@@ -1200,7 +1200,6 @@ def main():
     """)
 
     try:
-        try:
         # File selection container
         with st.container():
             selected_file = st.selectbox(

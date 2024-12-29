@@ -1323,7 +1323,7 @@ def main():
                                     st.error(f"Error in sensitivity analysis: {str(e)}")
                                     st.session_state.sensitivity_results = None
 
-                with tabs[1]:
+                        with tabs[1]:
                             st.header("Condition Combinations Analysis")
                             
                             main_col, control_col = st.columns([3, 1])

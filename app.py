@@ -315,7 +315,7 @@ def create_patient_count_legend(G):
 @st.cache_data
 def create_network_graph(data, patient_conditions, min_or, time_horizon=None, time_margin=None):
     """Create network graph matching the personalized analysis visualization."""
-    # Create legend
+    # Create legend (unchanged)
     legend_html = """
     <div style="position: absolute; top: 10px; right: 10px; background: white;
                 padding: 10px; border: 1px solid #ddd; border-radius: 5px; z-index: 1000;">
@@ -352,7 +352,7 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
     # Initialize network
     net = Network(height="800px", width="100%", bgcolor='white', font_color='black', directed=True)
 
-    # Set network options
+    # Network options (unchanged)
     net.set_options("""
     {
         "nodes": {
@@ -391,37 +391,41 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
     }
     """)
 
-    # Filter initial data
+    # Apply initial OR filter
     filtered_data = data[data['OddsRatio'] >= min_or].copy()
     total_patients = data['TotalPatientsInGroup'].iloc[0]
-    connected_conditions = set()
     
-    # Find all connected conditions
+    # Find all connected conditions and their relationships
+    connected_conditions = set()
+    relationships_to_show = []
+    
     for condition_a in patient_conditions:
-        # Get relationships in both directions
-        relationships = filtered_data[
+        # Get all relationships for this condition
+        condition_relationships = filtered_data[
             (filtered_data['ConditionA'] == condition_a) |
             (filtered_data['ConditionB'] == condition_a)
         ]
         
         # Apply time filter if specified
-        if time_horizon and time_margin:
-            relationships = relationships[
-                relationships['MedianDurationYearsWithIQR'].apply(
+        if time_horizon is not None and time_margin is not None:
+            condition_relationships = condition_relationships[
+                condition_relationships['MedianDurationYearsWithIQR'].apply(
                     lambda x: parse_iqr(x)[0]) <= time_horizon * (1 + time_margin)
             ]
         
-        # Add connected conditions
-        connected_conditions.update(
-            relationships['ConditionA'].tolist() +
-            relationships['ConditionB'].tolist()
-        )
-
-    # Remove patient conditions from connected set
-    connected_conditions = connected_conditions - set(patient_conditions)
+        # Add valid relationships to our list
+        for _, row in condition_relationships.iterrows():
+            other_condition = (row['ConditionB'] if row['ConditionA'] == condition_a 
+                             else row['ConditionA'])
+            
+            if other_condition not in patient_conditions:
+                connected_conditions.add(other_condition)
+                relationships_to_show.append(row)
+    
+    # Get all active conditions
     active_conditions = set(patient_conditions) | connected_conditions
 
-    # Organize conditions by system
+    # Organize by system (unchanged)
     system_conditions = {}
     for condition in active_conditions:
         category = condition_categories.get(condition, "Other")
@@ -429,8 +433,9 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
             system_conditions[category] = []
         system_conditions[category].append(condition)
 
-    # Calculate system positions
-    active_categories = {condition_categories[cond] for cond in active_conditions if cond in condition_categories}
+    # Calculate positions (unchanged)
+    active_categories = {condition_categories[cond] for cond in active_conditions 
+                        if cond in condition_categories}
     angle_step = (2 * math.pi) / len(active_categories)
     radius = 500
     system_centers = {}
@@ -441,7 +446,7 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
         y = radius * math.sin(angle)
         system_centers[category] = (x, y)
 
-    # Add nodes
+    # Add nodes (unchanged)
     for category, conditions in system_conditions.items():
         center_x, center_y = system_centers[category]
         sub_radius = radius / (len(conditions) + 1)
@@ -463,72 +468,59 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
                 size=node_size,
                 x=node_x,
                 y=node_y,
-                color={'background': f"{base_color}50", 'border': '#000000' if is_initial else base_color},
+                color={'background': f"{base_color}50", 
+                       'border': '#000000' if is_initial else base_color},
                 physics=True,
                 fixed=False
             )
 
-    # Track added edges to prevent duplicates
-    processed_edges = set()
-
     # Add edges
-    for condition_a in patient_conditions:
-        for _, row in filtered_data[
-            ((filtered_data['ConditionA'] == condition_a) |
-             (filtered_data['ConditionB'] == condition_a)) &
-            (filtered_data['OddsRatio'] >= min_or)
-        ].iterrows():
-            # Skip if time horizon filter doesn't pass
-            if time_horizon and time_margin:
-                median, _, _ = parse_iqr(row['MedianDurationYearsWithIQR'])
-                if median > time_horizon * (1 + time_margin):
-                    continue
+    processed_edges = set()
+    
+    for row in relationships_to_show:
+        condition_a = row['ConditionA']
+        condition_b = row['ConditionB']
+        
+        # Skip if already processed
+        edge_pair = tuple(sorted([condition_a, condition_b]))
+        if edge_pair in processed_edges:
+            continue
+        processed_edges.add(edge_pair)
 
-            # Determine the other condition
-            other_condition = row['ConditionB'] if row['ConditionA'] == condition_a else row['ConditionA']
-            
-            # Skip if it's between initial conditions or already processed
-            if other_condition in patient_conditions:
-                continue
-                
-            edge_pair = tuple(sorted([condition_a, other_condition]))
-            if edge_pair in processed_edges:
-                continue
-            processed_edges.add(edge_pair)
+        # Determine direction based on precedence
+        if "precedes" in row['Precedence']:
+            parts = row['Precedence'].split(" precedes ")
+            source = parts[0]
+            target = parts[1]
+            percentage = (row['DirectionalPercentage'] 
+                        if source == condition_a 
+                        else (100 - row['DirectionalPercentage']))
+        else:
+            source = condition_a
+            target = condition_b
+            percentage = row['DirectionalPercentage']
 
-            # Parse precedence to determine direction
-            if "precedes" in row['Precedence']:
-                parts = row['Precedence'].split(" precedes ")
-                source = parts[0]
-                target = parts[1]
-                percentage = row['DirectionalPercentage'] if source == condition_a else (100 - row['DirectionalPercentage'])
-            else:
-                # Default direction based on ConditionA/B
-                source = condition_a
-                target = other_condition
-                percentage = row['DirectionalPercentage']
+        # Calculate edge properties
+        edge_width = max(1, min(8, math.log2(row['OddsRatio'] + 1)))
+        prevalence = (row['PairFrequency'] / total_patients) * 100
+        
+        edge_label = (
+            f"OR: {row['OddsRatio']:.1f}\n"
+            f"Years: {row['MedianDurationYearsWithIQR']}\n"
+            f"n={row['PairFrequency']} ({prevalence:.1f}%)\n"
+            f"Proceeds: {percentage:.1f}%"
+        )
 
-            # Calculate edge properties
-            edge_width = max(1, min(8, math.log2(row['OddsRatio'] + 1)))
-            prevalence = (row['PairFrequency'] / total_patients) * 100
-            
-            edge_label = (
-                f"OR: {row['OddsRatio']:.1f}\n"
-                f"Years: {row['MedianDurationYearsWithIQR']}\n"
-                f"n={row['PairFrequency']} ({prevalence:.1f}%)\n"
-                f"Proceeds: {percentage:.1f}%"
-            )
-
-            net.add_edge(
-                source,
-                target,
-                label=edge_label,
-                title=edge_label,
-                width=edge_width,
-                arrows={'to': {'enabled': True, 'scaleFactor': 1}},
-                color={'color': 'rgba(128,128,128,0.7)', 'highlight': 'black'},
-                smooth={'type': 'curvedCW', 'roundness': 0.2}
-            )
+        net.add_edge(
+            source,
+            target,
+            label=edge_label,
+            title=edge_label,
+            width=edge_width,
+            arrows={'to': {'enabled': True, 'scaleFactor': 1}},
+            color={'color': 'rgba(128,128,128,0.7)', 'highlight': 'black'},
+            smooth={'type': 'curvedCW', 'roundness': 0.2}
+        )
 
     # Generate final HTML
     network_html = net.generate_html()

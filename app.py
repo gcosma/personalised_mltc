@@ -1923,16 +1923,21 @@ def main():
                                     help="Choose the starting conditions for trajectory analysis"
                                 )
                 
+                        
                                 if selected_conditions:
                                     max_years = math.ceil(filtered_data['MedianDurationYearsWithIQR']
                                                     .apply(lambda x: parse_iqr(x)[0]).max())
                                     time_horizon = st.slider(
                                         "Time Horizon (years)",
-                                        1, max_years, st.session_state.time_horizon,
+                                        min_value=1.0,
+                                        max_value=float(max_years),  # Convert to float
+                                        value=float(st.session_state.time_horizon),  # Convert to float
+                                        step=0.5,  
                                         key="custom_time_horizon",
                                         help="Maximum time period to consider"
                                     )
-                
+
+
                                     time_margin = st.slider(
                                         "Time Margin",
                                         0.0, 0.5, st.session_state.time_margin, 0.05,

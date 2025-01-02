@@ -339,7 +339,7 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
                  border: 1px solid {color}; margin-right: 5px;"></div>
             <span>{system}</span>
         </div>
-        """
+
 
     legend_html += """
         </div>

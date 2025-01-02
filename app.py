@@ -1489,7 +1489,7 @@ def main():
                             
                             min_or = st.slider(
                                 "Minimum Odds Ratio",
-                                1.0, 10.0, st.session_state.min_or, 0.5,
+                                1.0, 20.0, st.session_state.min_or, 0.5,
                                 key="personal_min_or",
                                 help="Filter trajectories by minimum odds ratio"
                             )

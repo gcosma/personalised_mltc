@@ -1756,9 +1756,9 @@ def main():
                             # Get max years from data
                             max_years = math.ceil(data['MedianDurationYearsWithIQR'].apply(
                                 lambda x: parse_iqr(x)[0]).max())
+                            
 
-                        
-                             time_horizon = st.slider(
+                            time_horizon = st.slider(
                                 "Time Horizon (years)",
                                 min_value=1.0,  # Change to float
                                 max_value=float(max_years),  # Convert to float
@@ -1766,10 +1766,8 @@ def main():
                                 step=0.5,  # Keep as float
                                 key="custom_time_horizon",
                                 help="Maximum time period to consider"
-                            )                           
-                            
+                            )
                             st.session_state.time_horizon = time_horizon
-                    
                             time_margin = st.slider(
                                 "Time Margin",
                                 min_value=0.0,

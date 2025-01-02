@@ -1610,35 +1610,35 @@ def main():
 
 
                 
-                    with control_col:
-                        with st.container():
-                            st.markdown('<div class="control-panel">', unsafe_allow_html=True)
-                            st.markdown("### Control Panel")
-                            
-                            # Get min/max values from data
-                            min_or_value = float(data['OddsRatio'].min())
-                            max_or_value = float(data['OddsRatio'].max())
-                            min_freq_value = int(data['PairFrequency'].min())
-                            max_freq_value = int(data['PairFrequency'].max())
-                            
-                            min_or = st.slider(
-                                "Minimum Odds Ratio",
-                                min_value=min_or_value,
-                                max_value=max_or_value,
-                                value=st.session_state.min_or,
-                                step=0.5,
-                                key="custom_min_or",
-                                help="Filter trajectories by minimum odds ratio"
-                            )
-                    
-                            min_freq = st.slider(
-                                "Minimum Frequency",
-                                min_value=min_freq_value,
-                                max_value=max_freq_value,
-                                value=min_freq_value,
-                                step=1,
-                                help="Minimum number of occurrences required"
-                            )
+                        with control_col:
+                            with st.container():
+                                st.markdown('<div class="control-panel">', unsafe_allow_html=True)
+                                st.markdown("### Control Panel")
+                                
+                                # Get min/max values from data
+                                min_or_value = float(data['OddsRatio'].min())
+                                max_or_value = float(data['OddsRatio'].max())
+                                min_freq_value = int(data['PairFrequency'].min())
+                                max_freq_value = int(data['PairFrequency'].max())
+                                
+                                min_or = st.slider(
+                                    "Minimum Odds Ratio",
+                                    min_value=min_or_value,
+                                    max_value=max_or_value,
+                                    value=st.session_state.min_or,
+                                    step=0.5,
+                                    key="custom_min_or",
+                                    help="Filter trajectories by minimum odds ratio"
+                                )
+                        
+                                min_freq = st.slider(
+                                    "Minimum Frequency",
+                                    min_value=min_freq_value,
+                                    max_value=max_freq_value,
+                                    value=min_freq_value,
+                                    step=1,
+                                    help="Minimum number of occurrences required"
+                                )
         
                                 # Filter data based on both OR and frequency
                                 filtered_data = data[

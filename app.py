@@ -561,9 +561,9 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
             smooth={'type': 'curvedCW', 'roundness': 0.2}
         )
 
-    # Add high-res export functionality
+    # Add export and download functionality
     export_script = """
-    <script>
+    <script type="text/javascript">
     function exportHighRes() {
         const network = document.getElementsByTagName('canvas')[0];
         const scale = 3;
@@ -581,25 +581,49 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
         link.href = exportCanvas.toDataURL('image/png');
         link.click();
     }
+
+    function downloadNetwork() {
+        const htmlContent = document.documentElement.outerHTML;
+        const blob = new Blob([htmlContent], { type: 'text/html' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'network.html';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+    }
     </script>
     """
 
-    export_button = """
-    <button onclick="exportHighRes()" 
-            style="position: absolute; top: 20px; left: 20px; z-index: 1000;
-                   padding: 10px 20px; font-size: 16px; background-color: #4CAF50;
-                   color: white; border: none; border-radius: 5px; cursor: pointer;">
-        Download High-Res Image
-    </button>
+    buttons_html = """
+    <div style="position: fixed; bottom: 20px; right: 20px; z-index: 1000;
+                display: flex; gap: 10px;">
+        <button onclick="exportHighRes()" 
+                style="padding: 10px 20px; font-size: 16px; background-color: #4CAF50;
+                       color: white; border: none; border-radius: 5px; cursor: pointer;">
+            📸 Download High-Res Image
+        </button>
+        <button onclick="downloadNetwork()" 
+                style="padding: 10px 20px; font-size: 16px; background-color: #4CAF50;
+                       color: white; border: none; border-radius: 5px; cursor: pointer;">
+            📥 Download Network
+        </button>
+    </div>
     """
 
     # Generate final HTML with all components
     network_html = net.generate_html()
-    final_html = network_html.replace('</body>', 
-                                    f'{systems_legend_html}{edge_legend_html}{export_script}{export_button}</body>')
+    final_html = network_html.replace(
+        '</head>',
+        export_script + '</head>'
+    ).replace(
+        '</body>',
+        f'{systems_legend_html}{edge_legend_html}{buttons_html}</body>'
+    )
 
     return final_html
-
 def create_network_graph2(data, patient_conditions, min_or, time_horizon=None, time_margin=None):
     """Create network graph matching the personalized analysis visualization."""
     # Create legend (unchanged)

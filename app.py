@@ -1795,13 +1795,14 @@ def main():
                         """, unsafe_allow_html=True)
                         
                         unique_conditions = sorted(set(data['ConditionA'].unique()) | set(data['ConditionB'].unique()))
+                   
                         selected_conditions = st.multiselect(
                             "Select Current Conditions",
                             unique_conditions,
                             default=st.session_state.selected_conditions,
-                            key="personal_select",
+                            key="condition_select",
                             help="Choose all conditions that the patient currently has"
-                        )
+)
                         st.session_state.selected_conditions = selected_conditions
 
                         if selected_conditions and analyse_button:

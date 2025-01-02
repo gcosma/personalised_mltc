@@ -1403,7 +1403,7 @@ def main():
 
     # Page configuration
     st.set_page_config(
-        page_title="DECODE Project: Multimorbidity Analysis Tool for people with ID and MLTC",
+        page_title="DECODE Project: Multimorbidity Analysis Tool for people with learning disability and MLTCs",
         layout="wide",
         initial_sidebar_state="expanded"
     )

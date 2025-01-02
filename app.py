@@ -1854,7 +1854,7 @@ def main():
                             )
 
         
-    
+        
                 with tabs[3]:
                     st.header("Custom Trajectory Filter")
                     st.markdown("""
@@ -1906,20 +1906,20 @@ def main():
                                     set(filtered_data['ConditionB'].unique())
                                 )
                 
-                                # Initialize session state for selected conditions if not exists
-                                if 'trajectory_selected_conditions' not in st.session_state:
-                                    st.session_state.trajectory_selected_conditions = []
+                                # Use the same session state as tab 2
+                                if 'selected_conditions' not in st.session_state:
+                                    st.session_state.selected_conditions = []
                 
-                                def on_trajectory_condition_select():
-                                    # Update the session state directly from the widget value
-                                    st.session_state.trajectory_selected_conditions = st.session_state.custom_select
+                                def on_condition_select():
+                                    # Update the shared session state
+                                    st.session_state.selected_conditions = st.session_state.custom_select
                 
                                 selected_conditions = st.multiselect(
                                     "Select Initial Conditions",
                                     options=unique_conditions,
-                                    default=st.session_state.trajectory_selected_conditions,
+                                    default=st.session_state.selected_conditions,
                                     key="custom_select",
-                                    on_change=on_trajectory_condition_select,
+                                    on_change=on_condition_select,
                                     help="Choose the starting conditions for trajectory analysis"
                                 )
                 
@@ -1987,6 +1987,9 @@ def main():
                                 file_name="custom_trajectory_network.html",
                                 mime="text/html"
                             )
+
+                
+            
             
                 with tabs[4]:
                     st.header("Cohort Network Analysis")

@@ -317,31 +317,58 @@ def create_patient_count_legend(G):
 
 @st.cache_data
 def create_network_graph(data, patient_conditions, min_or, time_horizon=None, time_margin=None):
-    """Create network graph with proper edge styling and arrows for the trajectory filter."""
-    # Initialize network with better resolution and sizing
-    net = Network(height="800px", width="100%", bgcolor='white', font_color='black', directed=True)
-    
-    # Enhanced network options for better edge and arrow visibility
+    """Create network graph matching the personalized analysis visualization."""
+    # Create legend
+    legend_html = """
+    <div style="position: absolute; top: 10px; right: 10px; background: white;
+                padding: 10px; border: 1px solid #ddd; border-radius: 5px; z-index: 1000;">
+        <h3 style="margin-top: 0; margin-bottom: 10px;">Legend</h3>
+        <div style="margin-bottom: 10px;">
+            <strong>Node Types:</strong><br>
+            ★ Initial Condition<br>
+            ○ Related Condition
+        </div>
+        <div>
+            <strong>Body Systems:</strong><br>
+    """
+
+    for system, color in SYSTEM_COLORS.items():
+        legend_html += f"""
+        <div style="display: flex; align-items: center; margin: 2px 0;">
+            <div style="width: 15px; height: 15px; background-color: {color}50;
+                 border: 1px solid {color}; margin-right: 5px;"></div>
+            <span>{system}</span>
+        </div>
+        """
+
+    legend_html += """
+        </div>
+        <div style="margin-top: 10px;">
+            <strong>Edge Information:</strong><br>
+            • Edge thickness indicates <br> strength of association (OR)<br>
+            • Arrow indicates typical <br> progression direction<br>
+            • Hover over edges <br> for detailed statistics
+        </div>
+    </div>
+    """
+
+    # Initialize network with higher resolution settings
+    net = Network(height="1200px", width="100%", bgcolor='white', font_color='black', directed=True)
+
+    # Enhanced network options
     net.set_options("""
     {
         "nodes": {
-            "font": {"size": 16, "strokeWidth": 2},
-            "scaling": {"min": 20, "max": 40}
+            "font": {"size": 24, "strokeWidth": 2},
+            "scaling": {"min": 20, "max": 50}
         },
         "edges": {
             "color": {"inherit": false},
-            "width": 2,
             "font": {
-                "size": 12,
+                "size": 18,
+                "strokeWidth": 2,
                 "align": "middle",
                 "background": "rgba(255, 255, 255, 0.8)"
-            },
-            "arrows": {
-                "to": {
-                    "enabled": true,
-                    "scaleFactor": 1,
-                    "type": "arrow"
-                }
             },
             "smooth": {
                 "type": "continuous",
@@ -353,12 +380,17 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
             "barnesHut": {
                 "gravitationalConstant": -4000,
                 "centralGravity": 0.1,
-                "springLength": 200,
-                "springConstant": 0.04,
-                "damping": 0.09,
+                "springLength": 250,
+                "springConstant": 0.03,
+                "damping": 0.1,
                 "avoidOverlap": 1
             },
-            "minVelocity": 0.75
+            "minVelocity": 0.75,
+            "stabilization": {
+                "enabled": true,
+                "iterations": 1000,
+                "updateInterval": 25
+            }
         }
     }
     """)
@@ -367,7 +399,7 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
     filtered_data = data[data['OddsRatio'] >= min_or].copy()
     total_patients = data['TotalPatientsInGroup'].iloc[0]
     
-    # Find connected conditions and relationships
+    # Find all connected conditions and their relationships
     connected_conditions = set()
     relationships_to_show = []
     
@@ -377,7 +409,6 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
             (filtered_data['ConditionB'] == condition_a)
         ]
         
-        # Apply time filter if specified
         if time_horizon is not None and time_margin is not None:
             condition_relationships = condition_relationships[
                 condition_relationships['MedianDurationYearsWithIQR'].apply(
@@ -385,72 +416,115 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
             ]
         
         for _, row in condition_relationships.iterrows():
-            other_condition = row['ConditionB'] if row['ConditionA'] == condition_a else row['ConditionA']
+            other_condition = (row['ConditionB'] if row['ConditionA'] == condition_a 
+                             else row['ConditionA'])
+            
             if other_condition not in patient_conditions:
                 connected_conditions.add(other_condition)
                 relationships_to_show.append(row)
     
     active_conditions = set(patient_conditions) | connected_conditions
 
-    # Add nodes with system-based colors
+    # Organize by system
+    system_conditions = {}
     for condition in active_conditions:
-        system = condition_categories.get(condition, "Other")
-        is_initial = condition in patient_conditions
-        base_color = SYSTEM_COLORS[system]
-        
-        net.add_node(
-            condition,
-            label=f"★ {condition}" if is_initial else condition,
-            title=f"{condition}\nSystem: {system}",
-            size=35 if is_initial else 25,
-            color={'background': f"{base_color}50", 'border': '#000000' if is_initial else base_color},
-            font={'size': 16, 'face': 'arial'}
-        )
+        category = condition_categories.get(condition, "Other")
+        if category not in system_conditions:
+            system_conditions[category] = []
+        system_conditions[category].append(condition)
 
-    # Add edges with enhanced styling
+    # Calculate positions
+    active_categories = {condition_categories[cond] for cond in active_conditions 
+                        if cond in condition_categories}
+    angle_step = (2 * math.pi) / len(active_categories)
+    radius = 500
+    system_centers = {}
+
+    for i, category in enumerate(sorted(active_categories)):
+        angle = i * angle_step
+        x = radius * math.cos(angle)
+        y = radius * math.sin(angle)
+        system_centers[category] = (x, y)
+
+    # Add nodes
+    for category, conditions in system_conditions.items():
+        center_x, center_y = system_centers[category]
+        sub_radius = radius / (len(conditions) + 1)
+        
+        for j, condition in enumerate(conditions):
+            sub_angle = (j / len(conditions)) * (2 * math.pi)
+            node_x = center_x + sub_radius * math.cos(sub_angle)
+            node_y = center_y + sub_radius * math.sin(sub_angle)
+            
+            is_initial = condition in patient_conditions
+            node_label = f"★ {condition}" if is_initial else condition
+            node_size = 40 if is_initial else 30
+            base_color = SYSTEM_COLORS[category]
+            
+            net.add_node(
+                condition,
+                label=node_label,
+                title=f"{condition}\nSystem: {category}",
+                size=node_size,
+                x=node_x,
+                y=node_y,
+                color={'background': f"{base_color}50", 
+                       'border': '#000000' if is_initial else base_color},
+                physics=True,
+                fixed=False
+            )
+
+    # Add edges
+    processed_edges = set()
+    
     for row in relationships_to_show:
-        # Determine direction based on precedence
+        condition_a = row['ConditionA']
+        condition_b = row['ConditionB']
+        
+        edge_pair = tuple(sorted([condition_a, condition_b]))
+        if edge_pair in processed_edges:
+            continue
+        processed_edges.add(edge_pair)
+
         if "precedes" in row['Precedence']:
             parts = row['Precedence'].split(" precedes ")
             source = parts[0]
             target = parts[1]
             percentage = (row['DirectionalPercentage'] 
-                        if source == row['ConditionA'] 
+                        if source == condition_a 
                         else (100 - row['DirectionalPercentage']))
         else:
-            source = row['ConditionA']
-            target = row['ConditionB']
+            source = condition_a
+            target = condition_b
             percentage = row['DirectionalPercentage']
 
-        # Calculate edge width based on odds ratio
-        edge_width = max(2, min(8, math.log2(row['OddsRatio'] + 1)))
+        edge_width = max(2, min(10, math.log2(row['OddsRatio'] + 1)))
         prevalence = (row['PairFrequency'] / total_patients) * 100
         
-        # Enhanced edge label
         edge_label = (
             f"OR: {row['OddsRatio']:.1f}\n"
             f"Years: {row['MedianDurationYearsWithIQR']}\n"
             f"n={row['PairFrequency']} ({prevalence:.1f}%)\n"
-            f"Direction: {percentage:.1f}%"
+            f"Proceeds: {percentage:.1f}%"
         )
 
-        # Add edge with enhanced styling
         net.add_edge(
             source,
             target,
+            label=edge_label,
             title=edge_label,
             width=edge_width,
             arrows={'to': {'enabled': True, 'scaleFactor': 1}},
-            color={'color': 'rgba(50,50,50,0.8)', 'highlight': '#000000'},
+            color={'color': 'rgba(128,128,128,0.7)', 'highlight': 'black'},
             smooth={'type': 'curvedCW', 'roundness': 0.2}
         )
 
-    # Create export button script
+    # Add high-res export functionality
     export_script = """
     <script>
     function exportHighRes() {
         const network = document.getElementsByTagName('canvas')[0];
-        const scale = 3;  // Increase this for higher resolution
+        const scale = 3;
         
         const exportCanvas = document.createElement('canvas');
         exportCanvas.width = network.width * scale;
@@ -468,7 +542,6 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
     </script>
     """
 
-    # Create export button HTML
     export_button = """
     <button onclick="exportHighRes()" 
             style="position: absolute; top: 20px; left: 20px; z-index: 1000;
@@ -478,42 +551,12 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
     </button>
     """
 
-    # Create legend
-    legend_html = """
-    <div style="position: absolute; top: 10px; right: 10px; background: white;
-                padding: 10px; border: 1px solid #ddd; border-radius: 5px; z-index: 1000;">
-        <h3 style="margin-top: 0; margin-bottom: 10px;">Legend</h3>
-        <div style="margin-bottom: 10px;">
-            <strong>Node Types:</strong><br>
-            ★ Initial Condition<br>
-            ○ Related Condition
-        </div>
-        <div style="margin-bottom: 10px;">
-            <strong>Edge Information:</strong><br>
-            • Edge thickness indicates strength of association (OR)<br>
-            • Arrow shows progression direction<br>
-            • Hover over edges for details
-        </div>
-        <div>
-            <strong>Body Systems:</strong><br>
-    """
-
-    for system, color in SYSTEM_COLORS.items():
-        legend_html += f"""
-        <div style="display: flex; align-items: center; margin: 2px 0;">
-            <div style="width: 15px; height: 15px; background-color: {color}50;
-                 border: 1px solid {color}; margin-right: 5px;"></div>
-            <span>{system}</span>
-        </div>
-        """
-
-    legend_html += "</div></div>"
-
     # Generate final HTML
     network_html = net.generate_html()
     final_html = network_html.replace('</body>', f'{legend_html}{export_script}{export_button}</body>')
 
     return final_html
+    
 
 
 def create_network_graph2(data, patient_conditions, min_or, time_horizon=None, time_margin=None):

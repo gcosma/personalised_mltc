@@ -1928,7 +1928,7 @@ def main():
                                                     .apply(lambda x: parse_iqr(x)[0]).max())
                                     time_horizon = st.slider(
                                         "Time Horizon (years)",
-                                        0.25, max_years, st.session_state.time_horizon,
+                                        1, max_years, st.session_state.time_horizon,
                                         key="custom_time_horizon",
                                         help="Maximum time period to consider"
                                     )

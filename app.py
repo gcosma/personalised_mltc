@@ -372,7 +372,7 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
             }
         },
         "physics": {
-            "enabled": false,
+            "enabled": true,
             "barnesHut": {
                 "gravitationalConstant": -4000,
                 "centralGravity": 0.1,

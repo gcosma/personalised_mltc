@@ -1019,9 +1019,44 @@ def create_network_visualization(data, min_or, min_freq):
             font={'size': 8, 'color': 'black', 'strokeWidth': 2, 'strokeColor': 'white'}
         )
 
+   
     # Generate final HTML with legends
     html = net.generate_html()
-    final_html = html.replace('</body>', f'{legend_html}{count_legend}</body>')
+    final_html = html.replace('</body>', f'''
+    {legend_html}{count_legend}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script>
+    function downloadHighResImage() {{
+        const networkContainer = document.querySelector('.vis-network');
+        if (!networkContainer) {{
+            console.error('Network container not found');
+            return;
+        }}
+        const scale = 2;
+        html2canvas(networkContainer, {{
+            scale: scale,
+            backgroundColor: '#ffffff',
+            logging: true,
+            useCORS: true
+        }}).then(canvas => {{
+            const link = document.createElement('a');
+            link.download = 'network_visualization.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }});
+    }}
+    </script>
+    <button onclick="downloadHighResImage()" 
+            style="padding: 10px 20px; 
+                   background-color: #4CAF50; 
+                   color: white; 
+                   border: none; 
+                   border-radius: 4px; 
+                   cursor: pointer; 
+                   margin: 10px 0;">
+        📸 Save High-Res Image
+    </button>
+    </body>''')
     
     return final_html
 

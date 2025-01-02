@@ -1730,11 +1730,9 @@ def main():
                     Analyse potential disease progressions based on a patient's current conditions,
                     considering population-level statistics and time-based progression patterns.
                     """)
-
+                
                     main_col, control_col = st.columns([3, 1])
-
-
-                    # In Personalised Analysis Tab
+                
                     with control_col:
                         with st.container():
                             st.markdown('<div class="control-panel">', unsafe_allow_html=True)
@@ -1786,7 +1784,7 @@ def main():
                                 help="Generate personalised analysis"
                             )
                             st.markdown('</div>', unsafe_allow_html=True)
-
+                
                     with main_col:
                         st.markdown("""
                         <h4 style='font-size: 1.2em; font-weight: 600; color: #333; margin-bottom: 10px;'>
@@ -1794,21 +1792,29 @@ def main():
                         </h4>
                         """, unsafe_allow_html=True)
                         
+                        # Initialize session state for selected conditions if not exists
+                        if 'selected_conditions' not in st.session_state:
+                            st.session_state.selected_conditions = []
+                
+                        # Get unique conditions only once
                         unique_conditions = sorted(set(data['ConditionA'].unique()) | set(data['ConditionB'].unique()))
+                        
+                        def on_condition_select():
+                            # Update the session state directly from the widget value
+                            st.session_state.selected_conditions = st.session_state.personal_select
+                
+                        # Use the multiselect with a callback
                         selected_conditions = st.multiselect(
                             "Select Current Conditions",
-                            unique_conditions,
+                            options=unique_conditions,
                             default=st.session_state.selected_conditions,
                             key="personal_select",
+                            on_change=on_condition_select,
                             help="Choose all conditions that the patient currently has"
                         )
-                        st.session_state.selected_conditions = selected_conditions
-
+                
                         if selected_conditions and analyse_button:
                             with st.spinner("🔄 Generating personalised analysis..."):
-                                # Clear previous results
-                                st.session_state.personalized_html = None
-                                
                                 # Generate new analysis
                                 html_content = create_personalized_analysis(
                                     data,
@@ -1818,7 +1824,7 @@ def main():
                                     min_or
                                 )
                                 st.session_state.personalized_html = html_content
-
+                
                                 html_container = f"""
                                 <div style="min-height: 800px; width: 100%; padding: 20px;">
                                     {html_content}
@@ -1831,7 +1837,7 @@ def main():
                                     file_name="personalised_trajectory_analysis.html",
                                     mime="text/html"
                                 )
-
+                
                         # Display existing analysis if available
                         elif st.session_state.personalized_html is not None:
                             html_container = f"""
@@ -1846,6 +1852,8 @@ def main():
                                 file_name="personalised_trajectory_analysis.html",
                                 mime="text/html"
                             )
+
+                
                 with tabs[3]:
                     st.header("Custom Trajectory Filter")
                     st.markdown("""

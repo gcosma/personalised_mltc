@@ -1760,8 +1760,9 @@ def main():
                             time_horizon = st.slider(
                                 "Time Horizon (years)",
                                 min_value=1,
-                                max_value=max_years,
-                                value=st.session_state.time_horizon,
+                                max_value=float(max_years),
+                                value=float(st.session_state.time_horizon),
+                                step=0.5,
                                 key="personal_time_horizon",
                                 help="Maximum time period to consider"
                             )

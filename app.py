@@ -1042,7 +1042,7 @@ def add_cohort_tab():
             # Sliders for filtering
             min_or = st.slider(
                 "Minimum Odds Ratio",
-                1.0, 10.0, 2.0, 0.1,
+                1.0, 15.0, 2.0, 0.1,
                 key="cohort_min_or",
                 help="Filter relationships by minimum odds ratio"
             )
@@ -1489,7 +1489,7 @@ def main():
                             
                             min_or = st.slider(
                                 "Minimum Odds Ratio",
-                                1.0, 20.0, st.session_state.min_or, 0.5,
+                                1.0, 15.0, st.session_state.min_or, 0.5,
                                 key="personal_min_or",
                                 help="Filter trajectories by minimum odds ratio"
                             )
@@ -1596,7 +1596,7 @@ def main():
                             try:
                                 min_or = st.slider(
                                     "Minimum Odds Ratio",
-                                    1.0, 10.0, st.session_state.min_or, 0.5,
+                                    1.0, 15.0, st.session_state.min_or, 0.5,
                                     key="custom_min_or",
                                     help="Filter trajectories by minimum odds ratio"
                                 )

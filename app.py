@@ -1800,8 +1800,9 @@ def main():
                             "Select Current Conditions",
                             unique_conditions,
                             default=st.session_state.selected_conditions,
-                            key="condition_select",
+                            key="shared_condition_select",
                             help="Choose all conditions that the patient currently has"
+                        )
 )
                         st.session_state.selected_conditions = selected_conditions
 

@@ -318,58 +318,60 @@ def create_patient_count_legend(G):
 @st.cache_data
 def create_network_graph(data, patient_conditions, min_or, time_horizon=None, time_margin=None):
     """Create network graph matching the personalized analysis visualization with cohort-style edges."""
-    # Initialize network with higher resolution settings
-    net = Network(height="1200px", width="100%", bgcolor='white', font_color='black', directed=True)
+    
+    # Initialize network with fixed size and options
+    net = Network(
+        height="800px", 
+        width="100%", 
+        bgcolor='white', 
+        font_color='black', 
+        directed=True,
+        notebook=False,
+        select_menu=True,
+        filter_menu=True
+    )
 
-    # Enhanced network options with physics enabled by default
-    net.set_options("""
+    # Set network options
+    net.set_options('''
     {
         "nodes": {
-            "font": {"size": 24, "strokeWidth": 2},
-            "scaling": {"min": 20, "max": 50}
+            "shape": "dot",
+            "size": 25,
+            "font": {
+                "size": 14,
+                "color": "black"
+            },
+            "borderWidth": 2
         },
         "edges": {
-            "color": {"inherit": false},
+            "color": {
+                "inherit": false
+            },
             "font": {
-                "size": 18,
-                "strokeWidth": 2,
-                "align": "middle",
-                "background": "rgba(255, 255, 255, 0.8)"
+                "size": 12,
+                "align": "middle"
             },
             "smooth": {
                 "type": "continuous",
-                "roundness": 0.2
+                "forceDirection": "none"
             }
         },
         "physics": {
-            "enabled": true,
             "barnesHut": {
-                "gravitationalConstant": -4000,
-                "centralGravity": 0.1,
+                "gravitationalConstant": -2000,
                 "springLength": 250,
-                "springConstant": 0.03,
-                "damping": 0.1,
-                "avoidOverlap": 1
+                "springConstant": 0.02
             },
-            "minVelocity": 0.75,
-            "stabilization": {
-                "enabled": true,
-                "iterations": 1000,
-                "updateInterval": 25
-            }
-        },
-        "interaction": {
-            "hover": true,
-            "tooltipDelay": 200
+            "minVelocity": 0.75
         }
     }
-    """)
+    ''')
 
     # Apply initial OR filter
     filtered_data = data[data['OddsRatio'] >= min_or].copy()
     total_patients = data['TotalPatientsInGroup'].iloc[0]
     
-    # Find all connected conditions and their relationships
+    # Find connected conditions and relationships
     connected_conditions = set()
     relationships_to_show = []
     
@@ -395,279 +397,174 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
     
     active_conditions = set(patient_conditions) | connected_conditions
 
-    # Organize by system
-    system_conditions = {}
-    for condition in active_conditions:
-        category = condition_categories.get(condition, "Other")
-        if category not in system_conditions:
-            system_conditions[category] = []
-        system_conditions[category].append(condition)
-
-    # Calculate positions
-    active_categories = {condition_categories[cond] for cond in active_conditions 
-                        if cond in condition_categories}
-    angle_step = (2 * math.pi) / len(active_categories)
-    radius = 500
-    system_centers = {}
-
-    for i, category in enumerate(sorted(active_categories)):
-        angle = i * angle_step
-        x = radius * math.cos(angle)
-        y = radius * math.sin(angle)
-        system_centers[category] = (x, y)
-
-    # Create body systems legend
-    systems_legend_html = """
-    <div style="position: absolute; top: 10px; right: 10px; background: white;
-                padding: 10px; border: 1px solid #ddd; border-radius: 5px; z-index: 1000;">
-        <h3 style="margin-top: 0; margin-bottom: 10px;">Legend</h3>
-        <div style="margin-bottom: 10px;">
-            <strong>Node Types:</strong><br>
-            ★ Initial Condition<br>
-            ○ Related Condition
-        </div>
-        <div>
-            <strong>Body Systems:</strong><br>
-    """
-
-    for system, color in SYSTEM_COLORS.items():
-        systems_legend_html += f"""
-        <div style="display: flex; align-items: center; margin: 2px 0;">
-            <div style="width: 15px; height: 15px; background-color: {color}50;
-                 border: 1px solid {color}; margin-right: 5px;"></div>
-            <span>{system}</span>
-        </div>
-        """
-
-    systems_legend_html += """
-        </div>
-        <div style="margin-top: 10px;">
-            <strong>Edge Information:</strong><br>
-            • Edge thickness indicates strength of relationship<br>
-            • Arrow indicates typical progression direction<br>
-            • Hover over edges for detailed statistics
-        </div>
-    </div>
-    """
-
     # Add nodes
-    for category, conditions in system_conditions.items():
-        center_x, center_y = system_centers[category]
-        sub_radius = radius / (len(conditions) + 1)
+    for condition in active_conditions:
+        is_initial = condition in patient_conditions
+        category = condition_categories.get(condition, "Other")
+        base_color = SYSTEM_COLORS[category]
         
-        for j, condition in enumerate(conditions):
-            sub_angle = (j / len(conditions)) * (2 * math.pi)
-            node_x = center_x + sub_radius * math.cos(sub_angle)
-            node_y = center_y + sub_radius * math.sin(sub_angle)
-            
-            is_initial = condition in patient_conditions
-            node_label = f"★ {condition}" if is_initial else condition
-            node_size = 40 if is_initial else 30
-            base_color = SYSTEM_COLORS[category]
-            
-            net.add_node(
-                condition,
-                label=node_label,
-                title=f"{condition}\nSystem: {category}",
-                size=node_size,
-                x=node_x,
-                y=node_y,
-                color={'background': f"{base_color}50", 
-                       'border': '#000000' if is_initial else base_color},
-                physics=True,
-                fixed=False
-            )
+        net.add_node(
+            condition,
+            label=f"★ {condition}" if is_initial else condition,
+            title=f"{condition}\nSystem: {category}",
+            size=30 if is_initial else 20,
+            color={'background': f"{base_color}50", 'border': base_color},
+            physics=True
+        )
 
-    # Get frequency percentiles for edge widths
+    # Calculate edge widths based on frequency percentiles
     if relationships_to_show:
         freqs = [row['PairFrequency'] for row in relationships_to_show]
         percentiles = np.percentile(freqs, [0, 20, 40, 60, 80, 100])
-    else:
-        percentiles = np.zeros(6)  # Default if no relationships
-
-    # Create dynamic edge width legend
-    edge_legend_html = """
-    <div style="position: absolute; top: 10px; left: 10px; background: white;
-                padding: 10px; border: 1px solid #ddd; border-radius: 5px; z-index: 1000;">
-        <div style="font-weight: bold; margin-bottom: 5px;">Patient Count Ranges</div>
-    """
-    
-    # Add ranges to legend
-    ranges = [
-        (percentiles[0], percentiles[1], "0% - 20%"),
-        (percentiles[1], percentiles[2], "20% - 40%"),
-        (percentiles[2], percentiles[3], "40% - 60%"),
-        (percentiles[3], percentiles[4], "60% - 80%"),
-        (percentiles[4], percentiles[5], "80%+")
-    ]
-    
-    for i, (lower, upper, label) in enumerate(ranges, 1):
-        edge_legend_html += f"""
-        <div style="margin: 5px 0;">
-            <div style="border-bottom: {i}px solid black; width: 40px; 
-                       display: inline-block; margin-right: 5px;"></div>
-            {int(lower)} ≤ Patients < {int(upper)} ({label})
-        </div>
-        """
-    edge_legend_html += "</div>"
-
-    # Add edges with standardized widths
-    processed_edges = set()
-    
-    for row in relationships_to_show:
-        condition_a = row['ConditionA']
-        condition_b = row['ConditionB']
         
-        edge_pair = tuple(sorted([condition_a, condition_b]))
-        if edge_pair in processed_edges:
-            continue
-        processed_edges.add(edge_pair)
+        for row in relationships_to_show:
+            freq = row['PairFrequency']
+            edge_width = 1
+            for i, p in enumerate(percentiles[1:], 1):
+                if freq >= p:
+                    edge_width = i
 
-        if "precedes" in row['Precedence']:
-            parts = row['Precedence'].split(" precedes ")
-            source = parts[0]
-            target = parts[1]
-            percentage = (row['DirectionalPercentage'] 
-                        if source == condition_a 
-                        else (100 - row['DirectionalPercentage']))
-        else:
-            source = condition_a
-            target = condition_b
+            prevalence = (row['PairFrequency'] / total_patients) * 100
             percentage = row['DirectionalPercentage']
+            
+            edge_label = (
+                f"OR: {row['OddsRatio']:.1f}\n"
+                f"Years: {row['MedianDurationYearsWithIQR']}\n"
+                f"n={row['PairFrequency']} ({prevalence:.1f}%)\n"
+                f"Proceeds: {percentage:.1f}%"
+            )
 
-        # Calculate edge width based on percentiles
-        freq = row['PairFrequency']
-        for i, (lower, upper, _) in enumerate(ranges, 1):
-            if lower <= freq < upper:
-                edge_width = i
-                break
-        else:
-            edge_width = 5  # Maximum width for highest range
+            net.add_edge(
+                row['ConditionA'],
+                row['ConditionB'],
+                title=edge_label,
+                width=edge_width,
+                arrows={'to': {'enabled': True}},
+                smooth={'type': 'curvedCW', 'roundness': 0.2}
+            )
 
-        prevalence = (row['PairFrequency'] / total_patients) * 100
+    # Generate HTML
+    html_content = '''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>Network Visualization</title>
+        <script type="text/javascript">
+        let network;
         
-        edge_label = (
-            f"OR: {row['OddsRatio']:.1f}\n"
-            f"Years: {row['MedianDurationYearsWithIQR']}\n"
-            f"n={row['PairFrequency']} ({prevalence:.1f}%)\n"
-            f"Proceeds: {percentage:.1f}%"
-        )
-
-        net.add_edge(
-            source,
-            target,
-            label=edge_label,
-            title=edge_label,
-            width=edge_width,
-            arrows={'to': {'enabled': True, 'scaleFactor': 1}},
-            color={'color': 'rgba(128,128,128,0.7)', 'highlight': 'black'},
-            smooth={'type': 'curvedCW', 'roundness': 0.2}
-        )
-
-    # Add export and download functionality with physics toggle
-    export_script = """
-    <script type="text/javascript">
-    let network;
-    
-    function initNetwork() {
-        // Wait for the network to be created
-        const waitForNetwork = setInterval(() => {
-            const container = document.querySelector('div[id^="vis_"]');
-            if (container && container.network) {
-                network = container.network;
-                clearInterval(waitForNetwork);
-                console.log('Network initialized successfully');
+        function initNetwork() {
+            const container = document.getElementById('mynetwork');
+            if (container) {
+                network = container.__vis_network__;
+                if (network) {
+                    console.log('Network initialized');
+                }
             }
-        }, 100);
-    }
-
-    function togglePhysics() {
-        if (!network) {
-            console.warn('Network not initialized');
-            return;
         }
-        
-        const physics = !network.physics.options.enabled;
-        network.physics.options.enabled = physics;
-        
-        if (physics) {
-            network.stabilize();
+
+        function togglePhysics() {
+            if (!network) {
+                initNetwork();
+            }
+            if (network) {
+                const physics = !network.physics.options.enabled;
+                network.physics.options.enabled = physics;
+                if (physics) {
+                    network.stabilize();
+                }
+                const button = document.getElementById('physicsToggle');
+                button.innerHTML = physics ? '🔄 Physics On' : '⭐ Physics Off';
+                button.style.backgroundColor = physics ? '#2196F3' : '#FF9800';
+            }
         }
-        
-        const button = document.getElementById('physicsToggle');
-        button.innerHTML = physics ? '🔄 Physics On' : '⭐ Physics Off';
-        button.style.backgroundColor = physics ? '#2196F3' : '#FF9800';
-    }
 
-    function exportHighRes() {
-        const network = document.getElementsByTagName('canvas')[0];
-        const scale = 3;
-        
-        const exportCanvas = document.createElement('canvas');
-        exportCanvas.width = network.width * scale;
-        exportCanvas.height = network.height * scale;
-        
-        const ctx = exportCanvas.getContext('2d');
-        ctx.scale(scale, scale);
-        ctx.drawImage(network, 0, 0);
-        
-        const link = document.createElement('a');
-        link.download = 'trajectory_network.png';
-        link.href = exportCanvas.toDataURL('image/png');
-        link.click();
-    }
+        function exportHighRes() {
+            const canvas = document.getElementsByTagName('canvas')[0];
+            const scale = 3;
+            const exportCanvas = document.createElement('canvas');
+            exportCanvas.width = canvas.width * scale;
+            exportCanvas.height = canvas.height * scale;
+            const ctx = exportCanvas.getContext('2d');
+            ctx.scale(scale, scale);
+            ctx.drawImage(canvas, 0, 0);
+            const link = document.createElement('a');
+            link.download = 'network.png';
+            link.href = exportCanvas.toDataURL();
+            link.click();
+        }
 
-    function downloadNetwork() {
-        const htmlContent = document.documentElement.outerHTML;
-        const blob = new Blob([htmlContent], { type: 'text/html' });
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = 'network.html';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-    }
+        window.addEventListener('load', initNetwork);
+        </script>
+        <style>
+            #mynetwork {
+                width: 100%;
+                height: 800px;
+                border: 1px solid lightgray;
+            }
+            .controls {
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                display: flex;
+                gap: 10px;
+                z-index: 1000;
+            }
+            .controls button {
+                padding: 10px 20px;
+                font-size: 16px;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+            }
+            .legend {
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                background: white;
+                padding: 10px;
+                border: 1px solid #ddd;
+                border-radius: 5px;
+                font-size: 12px;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="mynetwork"></div>
+        <div class="controls">
+            <button id="physicsToggle" onclick="togglePhysics()" style="background-color: #2196F3;">
+                🔄 Physics On
+            </button>
+            <button onclick="exportHighRes()" style="background-color: #4CAF50;">
+                📸 Export High-Res
+            </button>
+        </div>
+        <div class="legend">
+            <h3>Legend</h3>
+            <div>★ Initial Condition</div>
+            <div>○ Related Condition</div>
+            <hr>
+            <h4>Edge Thickness</h4>
+            <div>Thicker edges = Stronger relationships</div>
+        </div>
+    </body>
+    </html>
+    '''
 
-    // Initialize network when the page loads
-    window.addEventListener('load', initNetwork);
-    </script>
-    """
-
-    # Add buttons HTML
-    buttons_html = """
-    <div style="position: fixed; bottom: 20px; right: 20px; z-index: 1000;
-                display: flex; gap: 10px;">
-        <button onclick="togglePhysics()" id="physicsToggle"
-                style="padding: 10px 20px; font-size: 16px; background-color: #2196F3;
-                       color: white; border: none; border-radius: 5px; cursor: pointer;">
-            🔄 Physics On
-        </button>
-        <button onclick="exportHighRes()" 
-                style="padding: 10px 20px; font-size: 16px; background-color: #4CAF50;
-                       color: white; border: none; border-radius: 5px; cursor: pointer;">
-            📸 Download High-Res Image
-        </button>
-        <button onclick="downloadNetwork()" 
-                style="padding: 10px 20px; font-size: 16px; background-color: #4CAF50;
-                       color: white; border: none; border-radius: 5px; cursor: pointer;">
-            📥 Download Network
-        </button>
-    </div>
-    """
-
-    # Generate final HTML with all components
-    network_html = net.generate_html()
-    final_html = network_html.replace(
-        '</head>',
-        export_script + '</head>'
-    ).replace(
-        '</body>',
-        f'{systems_legend_html}{edge_legend_html}{buttons_html}</body>'
-    )
-
+    # Save network
+    net.save_graph("temp.html")
+    
+    # Read the generated file and inject our custom HTML
+    with open("temp.html", "r", encoding="utf-8") as f:
+        vis_html = f.read()
+    
+    # Insert our custom HTML elements
+    final_html = html_content.replace('<div id="mynetwork"></div>', 
+                                    vis_html.split('<body>')[1].split('</body>')[0])
+    
     return final_html
+
 def create_network_graph1(data, patient_conditions, min_or, time_horizon=None, time_margin=None):
     """Create network graph matching the personalized analysis visualization with cohort-style edges."""
     # Initialize network with higher resolution settings

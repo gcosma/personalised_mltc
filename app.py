@@ -1019,44 +1019,9 @@ def create_network_visualization(data, min_or, min_freq):
             font={'size': 8, 'color': 'black', 'strokeWidth': 2, 'strokeColor': 'white'}
         )
 
-   
     # Generate final HTML with legends
     html = net.generate_html()
-    final_html = html.replace('</body>', f'''
-    {legend_html}{count_legend}
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script>
-    function downloadHighResImage() {{
-        const networkContainer = document.querySelector('.vis-network');
-        if (!networkContainer) {{
-            console.error('Network container not found');
-            return;
-        }}
-        const scale = 2;
-        html2canvas(networkContainer, {{
-            scale: scale,
-            backgroundColor: '#ffffff',
-            logging: true,
-            useCORS: true
-        }}).then(canvas => {{
-            const link = document.createElement('a');
-            link.download = 'network_visualization.png';
-            link.href = canvas.toDataURL('image/png');
-            link.click();
-        }});
-    }}
-    </script>
-    <button onclick="downloadHighResImage()" 
-            style="padding: 10px 20px; 
-                   background-color: #4CAF50; 
-                   color: white; 
-                   border: none; 
-                   border-radius: 4px; 
-                   cursor: pointer; 
-                   margin: 10px 0;">
-        📸 Save High-Res Image
-    </button>
-    </body>''')
+    final_html = html.replace('</body>', f'{legend_html}{count_legend}</body>')
     
     return final_html
 
@@ -1077,7 +1042,7 @@ def add_cohort_tab():
             # Sliders for filtering
             min_or = st.slider(
                 "Minimum Odds Ratio",
-                1.0, 10.0, 2.0, 0.1,
+                1.0, 15.0, 2.0, 0.1,
                 key="cohort_min_or",
                 help="Filter relationships by minimum odds ratio"
             )
@@ -1190,7 +1155,7 @@ def main():
 
     # Page configuration
     st.set_page_config(
-        page_title="DECODE Project: Multimorbidity Analysis Tool for people with learning disabilities and MLTCs",
+        page_title="DECODE Project: Multimorbidity Analysis Tool for people with ID and MLTC",
         layout="wide",
         initial_sidebar_state="expanded"
     )
@@ -1222,16 +1187,19 @@ def main():
         .stTabs [data-baseweb="tab"] {
             height: 4rem;
             white-space: pre-wrap;
-            background-color: #f0f2f6;
+            background-color: #e2e8f0;
+            color: #1a202c;
             border-radius: 4px;
+            font-weight: 500;
         }
         .stTabs [data-baseweb="tab"]:hover {
-            background-color: #e6e9ef;
+            background-color: #cbd5e0;
+            color: #1a202c;
         }
         .stTabs [data-baseweb="tab"][aria-selected="true"] {
-            background-color: #ff4b4b;
+            background-color: #2c5282;
             color: white;
-        }
+        }        
         div[data-testid="stSidebarNav"] {
             background-color: #f8f9fa;
             padding: 1rem;
@@ -1517,36 +1485,53 @@ def main():
 
                     main_col, control_col = st.columns([3, 1])
 
+
+                    # In Personalised Analysis Tab
                     with control_col:
                         with st.container():
                             st.markdown('<div class="control-panel">', unsafe_allow_html=True)
                             st.markdown("### Control Panel")
                             
+                            # Get min/max values from data
+                            min_or_value = float(data['OddsRatio'].min())
+                            max_or_value = float(data['OddsRatio'].max())
+                            
                             min_or = st.slider(
                                 "Minimum Odds Ratio",
-                                1.0, 10.0, st.session_state.min_or, 0.5,
+                                min_value=min_or_value,
+                                max_value=max_or_value,
+                                value=st.session_state.min_or,
+                                step=0.5,
                                 key="personal_min_or",
                                 help="Filter trajectories by minimum odds ratio"
                             )
                             st.session_state.min_or = min_or
-
-                            max_years = math.ceil(data['MedianDurationYearsWithIQR'].apply(lambda x: parse_iqr(x)[0]).max())
+                    
+                            # Get max years from data
+                            max_years = math.ceil(data['MedianDurationYearsWithIQR'].apply(
+                                lambda x: parse_iqr(x)[0]).max())
+                            
                             time_horizon = st.slider(
                                 "Time Horizon (years)",
-                                1, max_years, st.session_state.time_horizon,
+                                min_value=1,
+                                max_value=max_years,
+                                value=st.session_state.time_horizon,
                                 key="personal_time_horizon",
                                 help="Maximum time period to consider"
                             )
                             st.session_state.time_horizon = time_horizon
-
+                    
                             time_margin = st.slider(
                                 "Time Margin",
-                                0.0, 0.5, st.session_state.time_margin, 0.05,
+                                min_value=0.0,
+                                max_value=0.5,
+                                value=st.session_state.time_margin,
+                                step=0.05,
                                 key="personal_time_margin",
                                 help="Allowable variation in time predictions"
                             )
                             st.session_state.time_margin = time_margin
-
+                            
                             analyse_button = st.button(
                                 "🔍 Analyse Trajectories",
                                 key="personal_analyse",
@@ -1614,48 +1599,58 @@ def main():
                                 mime="text/html"
                             )
 
-                # Custom Trajectory Filter Tab
+
                 with tabs[3]:
                     st.header("Custom Trajectory Filter")
                     st.markdown("""
                     Visualise disease trajectories based on custom odds ratio and frequency thresholds.
                     Select conditions and adjust filters to explore different trajectory patterns.
                     """)
-
+                
                     main_col, control_col = st.columns([3, 1])
-
+                
                     with control_col:
                         with st.container():
                             st.markdown('<div class="control-panel">', unsafe_allow_html=True)
                             st.markdown("### Control Panel")
                             try:
+                                # Get min/max values from data
+                                min_or_value = float(data['OddsRatio'].min())
+                                max_or_value = float(data['OddsRatio'].max())
+                                min_freq_value = int(data['PairFrequency'].min())
+                                max_freq_value = int(data['PairFrequency'].max())
+                                
                                 min_or = st.slider(
                                     "Minimum Odds Ratio",
-                                    1.0, 10.0, st.session_state.min_or, 0.5,
+                                    min_value=min_or_value,
+                                    max_value=max_or_value,
+                                    value=st.session_state.min_or,
+                                    step=0.5,
                                     key="custom_min_or",
                                     help="Filter trajectories by minimum odds ratio"
                                 )
-
+                
                                 min_freq = st.slider(
                                     "Minimum Frequency",
-                                    int(data['PairFrequency'].min()),
-                                    int(data['PairFrequency'].max()),
-                                    int(data['PairFrequency'].min()),
+                                    min_value=min_freq_value,
+                                    max_value=max_freq_value,
+                                    value=min_freq_value,
+                                    step=1,
                                     help="Minimum number of occurrences required"
                                 )
-
+                
                                 # Filter data based on both OR and frequency
                                 filtered_data = data[
                                     (data['OddsRatio'] >= min_or) &
                                     (data['PairFrequency'] >= min_freq)
                                 ]
-
+                
                                 # Get conditions from filtered data
                                 unique_conditions = sorted(set(
                                     filtered_data['ConditionA'].unique()) |
                                     set(filtered_data['ConditionB'].unique())
                                 )
-
+                
                                 selected_conditions = st.multiselect(
                                     "Select Initial Conditions",
                                     unique_conditions,
@@ -1664,7 +1659,7 @@ def main():
                                     help="Choose the starting conditions for trajectory analysis"
                                 )
                                 st.session_state.selected_conditions = selected_conditions
-
+                
                                 if selected_conditions:
                                     max_years = math.ceil(filtered_data['MedianDurationYearsWithIQR']
                                                         .apply(lambda x: parse_iqr(x)[0]).max())
@@ -1674,24 +1669,24 @@ def main():
                                         key="custom_time_horizon",
                                         help="Maximum time period to consider"
                                     )
-
+                
                                     time_margin = st.slider(
                                         "Time Margin",
                                         0.0, 0.5, st.session_state.time_margin, 0.05,
                                         key="custom_time_margin",
                                         help="Allowable variation in time predictions"
                                     )
-
+                
                                     generate_button = st.button(
                                         "🔄 Generate Network",
                                         key="custom_generate",
                                         help="Click to generate trajectory network"
                                     )
-
+                
                             except Exception as e:
                                 st.error(f"Error in custom trajectory analysis: {str(e)}")
                             st.markdown('</div>', unsafe_allow_html=True)
-
+                
                     with main_col:
                         if selected_conditions and generate_button:
                             with st.spinner("🌐 Generating network..."):
@@ -1709,7 +1704,7 @@ def main():
                                     )
                                     st.session_state.network_html = html_content
                                     st.components.v1.html(html_content, height=800)
-
+                
                                     st.download_button(
                                         label="📥 Download Network",
                                         data=html_content,
@@ -1720,6 +1715,8 @@ def main():
                                     st.error(f"Failed to generate network visualisation: {str(viz_error)}")
                                     st.session_state.network_html = None
 
+
+            
                 with tabs[4]:
                     st.header("Cohort Network Analysis")
                     st.markdown("""

@@ -1187,16 +1187,19 @@ def main():
         .stTabs [data-baseweb="tab"] {
             height: 4rem;
             white-space: pre-wrap;
-            background-color: #f0f2f6;
+            background-color: #e2e8f0;
+            color: #1a202c;
             border-radius: 4px;
+            font-weight: 500;
         }
         .stTabs [data-baseweb="tab"]:hover {
-            background-color: #e6e9ef;
+            background-color: #cbd5e0;
+            color: #1a202c;
         }
         .stTabs [data-baseweb="tab"][aria-selected="true"] {
-            background-color: #ff4b4b;
+            background-color: #2c5282;
             color: white;
-        }
+        }        
         div[data-testid="stSidebarNav"] {
             background-color: #f8f9fa;
             padding: 1rem;

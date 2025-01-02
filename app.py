@@ -313,24 +313,21 @@ def create_patient_count_legend(G):
         print(f"Error creating legend: {str(e)}")
         return """<div>Error creating legend</div>"""
 @st.cache_data
-
-
 def create_network_graph(data, patient_conditions, min_or, time_horizon=None, time_margin=None):
     """Create network graph matching the personalized analysis visualization."""
     # Create legend (unchanged)
     legend_html = """
-
-        <div style="position: absolute; top: 10px; right: 10px; background: white;
-                padding: 6px; border: 1px solid #ddd; border-radius: 4px; z-index: 1000;
-                font-size: 9px; max-width: 180px; opacity: 0.9;">
-        <h3 style="margin: 0 0 4px 0; font-size: 10px;">Legend</h3>
-        <div style="margin-bottom: 4px; line-height: 1.1;">
-            <strong>Nodes:</strong>
-            <span style="display: inline-block; margin-left: 2px;">★ Initial | ○ Related</span>
+    <div style="position: absolute; top: 10px; right: 10px; background: white;
+                padding: 10px; border: 1px solid #ddd; border-radius: 5px; z-index: 1000;">
+        <h3 style="margin-top: 0; margin-bottom: 10px;">Legend</h3>
+        <div style="margin-bottom: 10px;">
+            <strong>Node Types:</strong><br>
+            ★ Initial Condition<br>
+            ○ Related Condition
         </div>
-        <div style="line-height: 1.1;">
-            <strong>Systems:</strong>
-            
+        <div>
+            <strong>Body Systems:</strong><br>
+    """
 
     for system, color in SYSTEM_COLORS.items():
         legend_html += f"""
@@ -339,7 +336,7 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
                  border: 1px solid {color}; margin-right: 5px;"></div>
             <span>{system}</span>
         </div>
-
+        """
 
     legend_html += """
         </div>

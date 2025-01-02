@@ -316,42 +316,9 @@ def create_patient_count_legend(G):
 
 
 @st.cache_data
+
 def create_network_graph(data, patient_conditions, min_or, time_horizon=None, time_margin=None):
-    """Create network graph matching the personalized analysis visualization."""
-    # Create legend
-    legend_html = """
-    <div style="position: absolute; top: 10px; right: 10px; background: white;
-                padding: 10px; border: 1px solid #ddd; border-radius: 5px; z-index: 1000;">
-        <h3 style="margin-top: 0; margin-bottom: 10px;">Legend</h3>
-        <div style="margin-bottom: 10px;">
-            <strong>Node Types:</strong><br>
-            ★ Initial Condition<br>
-            ○ Related Condition
-        </div>
-        <div>
-            <strong>Body Systems:</strong><br>
-    """
-
-    for system, color in SYSTEM_COLORS.items():
-        legend_html += f"""
-        <div style="display: flex; align-items: center; margin: 2px 0;">
-            <div style="width: 15px; height: 15px; background-color: {color}50;
-                 border: 1px solid {color}; margin-right: 5px;"></div>
-            <span>{system}</span>
-        </div>
-        """
-
-    legend_html += """
-        </div>
-        <div style="margin-top: 10px;">
-            <strong>Edge Information:</strong><br>
-            • Edge thickness indicates <br> strength of association (OR)<br>
-            • Arrow indicates typical <br> progression direction<br>
-            • Hover over edges <br> for detailed statistics
-        </div>
-    </div>
-    """
-
+    """Create network graph matching the personalized analysis visualization with cohort-style edges."""
     # Initialize network with higher resolution settings
     net = Network(height="1200px", width="100%", bgcolor='white', font_color='black', directed=True)
 
@@ -446,6 +413,40 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
         y = radius * math.sin(angle)
         system_centers[category] = (x, y)
 
+    # Create body systems legend
+    systems_legend_html = """
+    <div style="position: absolute; top: 10px; right: 10px; background: white;
+                padding: 10px; border: 1px solid #ddd; border-radius: 5px; z-index: 1000;">
+        <h3 style="margin-top: 0; margin-bottom: 10px;">Legend</h3>
+        <div style="margin-bottom: 10px;">
+            <strong>Node Types:</strong><br>
+            ★ Initial Condition<br>
+            ○ Related Condition
+        </div>
+        <div>
+            <strong>Body Systems:</strong><br>
+    """
+
+    for system, color in SYSTEM_COLORS.items():
+        systems_legend_html += f"""
+        <div style="display: flex; align-items: center; margin: 2px 0;">
+            <div style="width: 15px; height: 15px; background-color: {color}50;
+                 border: 1px solid {color}; margin-right: 5px;"></div>
+            <span>{system}</span>
+        </div>
+        """
+
+    systems_legend_html += """
+        </div>
+        <div style="margin-top: 10px;">
+            <strong>Edge Information:</strong><br>
+            • Edge thickness indicates strength of relationship<br>
+            • Arrow indicates typical progression direction<br>
+            • Hover over edges for detailed statistics
+        </div>
+    </div>
+    """
+
     # Add nodes
     for category, conditions in system_conditions.items():
         center_x, center_y = system_centers[category]
@@ -474,7 +475,40 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
                 fixed=False
             )
 
-    # Add edges
+    # Get frequency percentiles for edge widths
+    if relationships_to_show:
+        freqs = [row['PairFrequency'] for row in relationships_to_show]
+        percentiles = np.percentile(freqs, [0, 20, 40, 60, 80, 100])
+    else:
+        percentiles = np.zeros(6)  # Default if no relationships
+
+    # Create dynamic edge width legend
+    edge_legend_html = """
+    <div style="position: absolute; top: 10px; left: 10px; background: white;
+                padding: 10px; border: 1px solid #ddd; border-radius: 5px; z-index: 1000;">
+        <div style="font-weight: bold; margin-bottom: 5px;">Patient Count Ranges</div>
+    """
+    
+    # Add ranges to legend
+    ranges = [
+        (percentiles[0], percentiles[1], "0% - 20%"),
+        (percentiles[1], percentiles[2], "20% - 40%"),
+        (percentiles[2], percentiles[3], "40% - 60%"),
+        (percentiles[3], percentiles[4], "60% - 80%"),
+        (percentiles[4], percentiles[5], "80%+")
+    ]
+    
+    for i, (lower, upper, label) in enumerate(ranges, 1):
+        edge_legend_html += f"""
+        <div style="margin: 5px 0;">
+            <div style="border-bottom: {i}px solid black; width: 40px; 
+                       display: inline-block; margin-right: 5px;"></div>
+            {int(lower)} ≤ Patients < {int(upper)} ({label})
+        </div>
+        """
+    edge_legend_html += "</div>"
+
+    # Add edges with standardized widths
     processed_edges = set()
     
     for row in relationships_to_show:
@@ -498,7 +532,15 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
             target = condition_b
             percentage = row['DirectionalPercentage']
 
-        edge_width = max(2, min(10, math.log2(row['OddsRatio'] + 1)))
+        # Calculate edge width based on percentiles
+        freq = row['PairFrequency']
+        for i, (lower, upper, _) in enumerate(ranges, 1):
+            if lower <= freq < upper:
+                edge_width = i
+                break
+        else:
+            edge_width = 5  # Maximum width for highest range
+
         prevalence = (row['PairFrequency'] / total_patients) * 100
         
         edge_label = (
@@ -551,13 +593,12 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
     </button>
     """
 
-    # Generate final HTML
+    # Generate final HTML with all components
     network_html = net.generate_html()
-    final_html = network_html.replace('</body>', f'{legend_html}{export_script}{export_button}</body>')
+    final_html = network_html.replace('</body>', 
+                                    f'{systems_legend_html}{edge_legend_html}{export_script}{export_button}</body>')
 
     return final_html
-    
-
 
 def create_network_graph2(data, patient_conditions, min_or, time_horizon=None, time_margin=None):
     """Create network graph matching the personalized analysis visualization."""

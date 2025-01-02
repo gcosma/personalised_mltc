@@ -1722,6 +1722,136 @@ def main():
                             st.error(f"Error in combinations analysis: {str(e)}")
                             st.session_state.combinations_results = None
                             st.session_state.combinations_fig = None
+# Personalised Analysis Tab
+with tabs[2]:
+    st.header("Personalised Trajectory Analysis")
+    st.markdown("""
+    Analyse potential disease progressions based on a patient's current conditions,
+    considering population-level statistics and time-based progression patterns.
+    """)
+
+    main_col, control_col = st.columns([3, 1])
+
+    with control_col:
+        with st.container():
+            st.markdown('<div class="control-panel">', unsafe_allow_html=True)
+            st.markdown("### Control Panel")
+            
+            # Get min/max values from data
+            min_or_value = float(data['OddsRatio'].min())
+            max_or_value = float(data['OddsRatio'].max())
+            
+            min_or = st.slider(
+                "Minimum Odds Ratio",
+                min_value=min_or_value,
+                max_value=max_or_value,
+                value=st.session_state.min_or,
+                step=0.5,
+                key="personal_min_or",
+                help="Filter trajectories by minimum odds ratio"
+            )
+            st.session_state.min_or = min_or
+    
+            # Get max years from data
+            max_years = math.ceil(data['MedianDurationYearsWithIQR'].apply(
+                lambda x: parse_iqr(x)[0]).max())
+            
+            time_horizon = st.slider(
+                "Time Horizon (years)",
+                min_value=1,
+                max_value=max_years,
+                value=st.session_state.time_horizon,
+                key="personal_time_horizon",
+                help="Maximum time period to consider"
+            )
+            st.session_state.time_horizon = time_horizon
+    
+            time_margin = st.slider(
+                "Time Margin",
+                min_value=0.0,
+                max_value=0.5,
+                value=st.session_state.time_margin,
+                step=0.05,
+                key="personal_time_margin",
+                help="Allowable variation in time predictions"
+            )
+            st.session_state.time_margin = time_margin
+            
+            analyse_button = st.button(
+                "🔍 Analyse Trajectories",
+                key="personal_analyse",
+                help="Generate personalised analysis"
+            )
+            st.markdown('</div>', unsafe_allow_html=True)
+
+    with main_col:
+        st.markdown("""
+        <h4 style='font-size: 1.2em; font-weight: 600; color: #333; margin-bottom: 10px;'>
+            🔍 Please select all conditions that the patient currently has:
+        </h4>
+        """, unsafe_allow_html=True)
+        
+        # Initialize session state for selected conditions if not exists
+        if 'selected_conditions' not in st.session_state:
+            st.session_state.selected_conditions = []
+
+        # Get unique conditions only once
+        unique_conditions = sorted(set(data['ConditionA'].unique()) | set(data['ConditionB'].unique()))
+        
+        def on_condition_select():
+            # Update the session state directly from the widget value
+            st.session_state.selected_conditions = st.session_state.personal_select
+
+        # Use the multiselect with a callback
+        selected_conditions = st.multiselect(
+            "Select Current Conditions",
+            options=unique_conditions,
+            default=st.session_state.selected_conditions,
+            key="personal_select",
+            on_change=on_condition_select,
+            help="Choose all conditions that the patient currently has"
+        )
+
+        if selected_conditions and analyse_button:
+            with st.spinner("🔄 Generating personalised analysis..."):
+                # Generate new analysis
+                html_content = create_personalized_analysis(
+                    data,
+                    selected_conditions,
+                    time_horizon,
+                    time_margin,
+                    min_or
+                )
+                st.session_state.personalized_html = html_content
+
+                html_container = f"""
+                <div style="min-height: 800px; width: 100%; padding: 20px;">
+                    {html_content}
+                </div>
+                """
+                st.components.v1.html(html_container, height=1200, scrolling=True)
+                st.download_button(
+                    label="📥 Download Analysis",
+                    data=html_content,
+                    file_name="personalised_trajectory_analysis.html",
+                    mime="text/html"
+                )
+
+        # Display existing analysis if available
+        elif st.session_state.personalized_html is not None:
+            html_container = f"""
+            <div style="min-height: 800px; width: 100%; padding: 20px;">
+                {st.session_state.personalized_html}
+            </div>
+            """
+            st.components.v1.html(html_container, height=1200, scrolling=True)
+            st.download_button(
+                label="📥 Download Analysis",
+                data=st.session_state.personalized_html,
+                file_name="personalised_trajectory_analysis.html",
+                mime="text/html"
+            )
+
 
                 # Personalised Analysis Tab
                 with tabs[2]:
@@ -1730,11 +1860,9 @@ def main():
                     Analyse potential disease progressions based on a patient's current conditions,
                     considering population-level statistics and time-based progression patterns.
                     """)
-
+                
                     main_col, control_col = st.columns([3, 1])
-
-
-                    # In Personalised Analysis Tab
+                
                     with control_col:
                         with st.container():
                             st.markdown('<div class="control-panel">', unsafe_allow_html=True)
@@ -1786,7 +1914,7 @@ def main():
                                 help="Generate personalised analysis"
                             )
                             st.markdown('</div>', unsafe_allow_html=True)
-
+                
                     with main_col:
                         st.markdown("""
                         <h4 style='font-size: 1.2em; font-weight: 600; color: #333; margin-bottom: 10px;'>
@@ -1794,21 +1922,29 @@ def main():
                         </h4>
                         """, unsafe_allow_html=True)
                         
+                        # Initialize session state for selected conditions if not exists
+                        if 'selected_conditions' not in st.session_state:
+                            st.session_state.selected_conditions = []
+                
+                        # Get unique conditions only once
                         unique_conditions = sorted(set(data['ConditionA'].unique()) | set(data['ConditionB'].unique()))
+                        
+                        def on_condition_select():
+                            # Update the session state directly from the widget value
+                            st.session_state.selected_conditions = st.session_state.personal_select
+                
+                        # Use the multiselect with a callback
                         selected_conditions = st.multiselect(
                             "Select Current Conditions",
-                            unique_conditions,
+                            options=unique_conditions,
                             default=st.session_state.selected_conditions,
                             key="personal_select",
+                            on_change=on_condition_select,
                             help="Choose all conditions that the patient currently has"
                         )
-                        st.session_state.selected_conditions = selected_conditions
-
+                
                         if selected_conditions and analyse_button:
                             with st.spinner("🔄 Generating personalised analysis..."):
-                                # Clear previous results
-                                st.session_state.personalized_html = None
-                                
                                 # Generate new analysis
                                 html_content = create_personalized_analysis(
                                     data,
@@ -1818,7 +1954,7 @@ def main():
                                     min_or
                                 )
                                 st.session_state.personalized_html = html_content
-
+                
                                 html_container = f"""
                                 <div style="min-height: 800px; width: 100%; padding: 20px;">
                                     {html_content}
@@ -1831,7 +1967,7 @@ def main():
                                     file_name="personalised_trajectory_analysis.html",
                                     mime="text/html"
                                 )
-
+                
                         # Display existing analysis if available
                         elif st.session_state.personalized_html is not None:
                             html_container = f"""
@@ -1846,6 +1982,12 @@ def main():
                                 file_name="personalised_trajectory_analysis.html",
                                 mime="text/html"
                             )
+
+
+
+            
+            
+                
                 with tabs[3]:
                     st.header("Custom Trajectory Filter")
                     st.markdown("""

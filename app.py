@@ -1848,6 +1848,8 @@ def main():
                                 file_name="personalised_trajectory_analysis.html",
                                 mime="text/html"
                             )
+
+
                 with tabs[3]:
                     st.header("Custom Trajectory Filter")
                     st.markdown("""
@@ -1893,20 +1895,11 @@ def main():
                                     (data['PairFrequency'] >= min_freq)
                                 ]
                 
-                                # Get conditions from filtered data
-                                unique_conditions = sorted(set(
-                                    filtered_data['ConditionA'].unique()) |
-                                    set(filtered_data['ConditionB'].unique())
-                                )
+                                # Use the shared selected_conditions from session state
+                                selected_conditions = st.session_state.selected_conditions
                 
-                                selected_conditions = st.multiselect(
-                                    "Select Initial Conditions",
-                                    unique_conditions,
-                                    default=st.session_state.selected_conditions,
-                                    key="custom_select",
-                                    help="Choose the starting conditions for trajectory analysis"
-                                )
-                                st.session_state.selected_conditions = selected_conditions
+                                # Display selected conditions
+                                st.write("Selected Conditions:", ", ".join(selected_conditions) if selected_conditions else "None")
                 
                                 if selected_conditions:
                                     max_years = math.ceil(filtered_data['MedianDurationYearsWithIQR']
@@ -1939,10 +1932,7 @@ def main():
                         if selected_conditions and generate_button:
                             with st.spinner("🌐 Generating network..."):
                                 try:
-                                    # Clear previous network
                                     st.session_state.network_html = None
-                                    
-                                    # Generate new network
                                     html_content = create_network_graph(
                                         filtered_data,
                                         selected_conditions,
@@ -1963,8 +1953,9 @@ def main():
                                     st.error(f"Failed to generate network visualisation: {str(viz_error)}")
                                     st.session_state.network_html = None
 
-            
-            
+
+
+               
                 with tabs[4]:
                     st.header("Cohort Network Analysis")
                     st.markdown("""

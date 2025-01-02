@@ -1853,7 +1853,8 @@ def main():
                                 mime="text/html"
                             )
 
-                
+        
+    
                 with tabs[3]:
                     st.header("Custom Trajectory Filter")
                     st.markdown("""
@@ -1905,18 +1906,26 @@ def main():
                                     set(filtered_data['ConditionB'].unique())
                                 )
                 
+                                # Initialize session state for selected conditions if not exists
+                                if 'trajectory_selected_conditions' not in st.session_state:
+                                    st.session_state.trajectory_selected_conditions = []
+                
+                                def on_trajectory_condition_select():
+                                    # Update the session state directly from the widget value
+                                    st.session_state.trajectory_selected_conditions = st.session_state.custom_select
+                
                                 selected_conditions = st.multiselect(
                                     "Select Initial Conditions",
-                                    unique_conditions,
-                                    default=st.session_state.selected_conditions,
+                                    options=unique_conditions,
+                                    default=st.session_state.trajectory_selected_conditions,
                                     key="custom_select",
+                                    on_change=on_trajectory_condition_select,
                                     help="Choose the starting conditions for trajectory analysis"
                                 )
-                                st.session_state.selected_conditions = selected_conditions
                 
                                 if selected_conditions:
                                     max_years = math.ceil(filtered_data['MedianDurationYearsWithIQR']
-                                                        .apply(lambda x: parse_iqr(x)[0]).max())
+                                                    .apply(lambda x: parse_iqr(x)[0]).max())
                                     time_horizon = st.slider(
                                         "Time Horizon (years)",
                                         1, max_years, st.session_state.time_horizon,
@@ -1968,8 +1977,16 @@ def main():
                                 except Exception as viz_error:
                                     st.error(f"Failed to generate network visualisation: {str(viz_error)}")
                                     st.session_state.network_html = None
-
-            
+                
+                        # Display existing network if available
+                        elif st.session_state.network_html is not None:
+                            st.components.v1.html(st.session_state.network_html, height=800)
+                            st.download_button(
+                                label="📥 Download Network",
+                                data=st.session_state.network_html,
+                                file_name="custom_trajectory_network.html",
+                                mime="text/html"
+                            )
             
                 with tabs[4]:
                     st.header("Cohort Network Analysis")

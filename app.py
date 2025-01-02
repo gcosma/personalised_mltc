@@ -1121,6 +1121,35 @@ def add_footer():
         unsafe_allow_html=True
     )  
 
+def clear_cache():
+    """Clear all Streamlit cache types"""
+    st.cache_data.clear()
+    st.cache_resource.clear()
+    st.experimental_memo.clear()
+    st.experimental_singleton.clear()
+    st.session_state.clear()
+    clear_session_state()  # Your existing function
+    st.rerun()
+
+def add_cache_clear_button():
+    """Add a styled cache clear button"""
+    st.markdown("""
+        <style>
+        .cache-button {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 9999;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    
+    with st.container():
+        col1, col2 = st.columns([6,1])
+        with col2:
+            if st.button("🔄 Clear Cache", key="clear_cache", help="Reset all data and clear cache"):
+                clear_cache()
+
 
 def main():
     # Initialize session state for data persistence
@@ -1159,7 +1188,9 @@ def main():
         layout="wide",
         initial_sidebar_state="expanded"
     )
-
+    # Add cache clear button here, before password check
+    add_cache_clear_button()
+    
     # Check password before showing any content
     if not check_password():
         st.stop()

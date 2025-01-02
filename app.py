@@ -1485,31 +1485,47 @@ def main():
 
                     main_col, control_col = st.columns([3, 1])
 
+                    # In Personalised Analysis Tab
                     with control_col:
                         with st.container():
                             st.markdown('<div class="control-panel">', unsafe_allow_html=True)
                             st.markdown("### Control Panel")
                             
+                            # Get min/max values from data
+                            min_or_value = float(data['OddsRatio'].min())
+                            max_or_value = float(data['OddsRatio'].max())
+                            
                             min_or = st.slider(
                                 "Minimum Odds Ratio",
-                                1.0, 15.0, st.session_state.min_or, 0.5,
+                                min_value=min_or_value,
+                                max_value=max_or_value,
+                                value=st.session_state.min_or,
+                                step=0.5,
                                 key="personal_min_or",
                                 help="Filter trajectories by minimum odds ratio"
                             )
                             st.session_state.min_or = min_or
-
-                            max_years = math.ceil(data['MedianDurationYearsWithIQR'].apply(lambda x: parse_iqr(x)[0]).max())
+                    
+                            # Get max years from data
+                            max_years = math.ceil(data['MedianDurationYearsWithIQR'].apply(
+                                lambda x: parse_iqr(x)[0]).max())
+                            
                             time_horizon = st.slider(
                                 "Time Horizon (years)",
-                                1, max_years, st.session_state.time_horizon,
+                                min_value=1,
+                                max_value=max_years,
+                                value=st.session_state.time_horizon,
                                 key="personal_time_horizon",
                                 help="Maximum time period to consider"
                             )
                             st.session_state.time_horizon = time_horizon
-
+                    
                             time_margin = st.slider(
                                 "Time Margin",
-                                0.0, 0.5, st.session_state.time_margin, 0.05,
+                                min_value=0.0,
+                                max_value=0.5,
+                                value=st.session_state.time_margin,
+                                step=0.05,
                                 key="personal_time_margin",
                                 help="Allowable variation in time predictions"
                             )

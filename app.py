@@ -1803,7 +1803,7 @@ def main():
                             key="shared_condition_select",
                             help="Choose all conditions that the patient currently has"
                         )
-)
+
                         st.session_state.selected_conditions = selected_conditions
 
                         if selected_conditions and analyse_button:

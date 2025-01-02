@@ -1848,8 +1848,6 @@ def main():
                                 file_name="personalised_trajectory_analysis.html",
                                 mime="text/html"
                             )
-
-
                 with tabs[3]:
                     st.header("Custom Trajectory Filter")
                     st.markdown("""
@@ -1954,8 +1952,9 @@ def main():
                                     st.session_state.network_html = None
 
 
-
-               
+                
+        
+            
                 with tabs[4]:
                     st.header("Cohort Network Analysis")
                     st.markdown("""

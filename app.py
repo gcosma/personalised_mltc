@@ -345,9 +345,9 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
         </div>
         <div style="margin-top: 10px;">
             <strong>Edge Information:</strong><br>
-            • Edge thickness indicates strength of association (OR)<br>
-            • Arrow indicates typical progression direction<br>
-            • Hover over edges for detailed statistics
+            • Edge thickness indicates <br> strength of association (OR)<br>
+            • Arrow indicates typical <br> progression direction<br>
+            • Hover over edges <br> for detailed statistics
         </div>
     </div>
     """

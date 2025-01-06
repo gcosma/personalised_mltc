@@ -979,7 +979,6 @@ def create_personalized_analysis(data, patient_conditions, time_horizon=None, ti
 def create_network_visualization(data, min_or, min_freq):
     """Create network visualization with legends with pastel colors matching paper style"""
     net = Network(height="800px", width="100%", bgcolor='white', font_color='black', directed=True)
-
     net.options = {
     "nodes": {
         "font": {"size": 14},
@@ -997,16 +996,17 @@ def create_network_visualization(data, min_or, min_freq):
         }
     },
     "physics": {
-        "enabled": true,
+        "enabled": True,
         "stabilization": {
-            "enabled": true,
+            "enabled": True,
             "iterations": 1000,
-            "fit": true
+            "fit": True
         },
         "minVelocity": 0.01
     }
 }
-  
+
+
     
     # Filter data
     filtered_data = data[

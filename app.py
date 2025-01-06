@@ -326,8 +326,7 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
     {
         "nodes": {
             "font": {"size": 24, "strokeWidth": 2},
-            "scaling": {"min": 20, "max": 50},
-            "fixed": false
+            "scaling": {"min": 20, "max": 50}
         },
         "edges": {
             "color": {"inherit": false},
@@ -344,28 +343,24 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
         },
         "physics": {
             "enabled": true,
+            "barnesHut": {
+                "gravitationalConstant": -4000,
+                "centralGravity": 0.1,
+                "springLength": 250,
+                "springConstant": 0.03,
+                "damping": 0.1,
+                "avoidOverlap": 1
+            },
+            "minVelocity": 0.75,
             "stabilization": {
                 "enabled": true,
                 "iterations": 1000,
                 "updateInterval": 25
-            },
-            "barnesHut": {
-                "gravitationalConstant": -2000,
-                "centralGravity": 0.3,
-                "springLength": 200,
-                "springConstant": 0.04,
-                "damping": 0.09
             }
-        },
-        "interaction": {
-            "dragNodes": true,
-            "dragView": true,
-            "zoomView": true
         }
     }
     """)
-    
-    
+
     # Apply initial OR filter
     filtered_data = data[data['OddsRatio'] >= min_or].copy()
     total_patients = data['TotalPatientsInGroup'].iloc[0]
@@ -1043,43 +1038,27 @@ def create_network_visualization(data, min_or, min_freq):
     net.set_options("""
     {
         "nodes": {
-            "font": {"size": 24, "strokeWidth": 2},
-            "scaling": {"min": 20, "max": 50}
+            "font": {"size": 14},
+            "shape": "dot"
         },
         "edges": {
-            "color": {"inherit": false},
             "font": {
-                "size": 18,
-                "strokeWidth": 2,
+                "size": 8,
                 "align": "middle",
-                "background": "rgba(255, 255, 255, 0.8)"
+                "background": "white"
             },
-            "smooth": {
-                "type": "continuous",
-                "roundness": 0.2
-            }
+            "smooth": {"type": "curvedCW", "roundness": 0.2}
         },
         "physics": {
             "enabled": true,
             "barnesHut": {
-                "gravitationalConstant": -4000,
-                "centralGravity": 0.1,
-                "springLength": 250,
-                "springConstant": 0.03,
-                "damping": 0.1,
-                "avoidOverlap": 1
-            },
-            "minVelocity": 0.75,
-            "stabilization": {
-                "enabled": true,
-                "iterations": 1000,
-                "updateInterval": 25
+                "gravitationalConstant": -2000,
+                "centralGravity": 0.3,
+                "springLength": 200
             }
         }
     }
     """)
-
-
 
     # Add nodes with system-based layout and pastel colors
     unique_systems = set(condition_categories[cond] for cond in set(filtered_data['ConditionA']) | set(filtered_data['ConditionB']))

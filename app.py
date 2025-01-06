@@ -976,9 +976,215 @@ def create_personalized_analysis(data, patient_conditions, time_horizon=None, ti
 
     return html
 
+def create_network_visualization(data, min_or, min_freq):
+    """Create network visualization with legends with pastel colors matching paper style"""
+    net = Network(height="800px", width="100%", bgcolor='white', font_color='black', directed=True)
+
+    net.options = {
+    "nodes": {
+        "font": {"size": 14},
+        "shape": "dot"
+    },
+    "edges": {
+        "font": {
+            "size": 8,
+            "align": "middle",
+            "background": "white"
+        },
+        "smooth": {
+            "type": "continuous",
+            "roundness": 0.2
+        }
+    },
+    "physics": {
+        "enabled": true,
+        "stabilization": {
+            "enabled": true,
+            "iterations": 1000,
+            "fit": true
+        },
+        "minVelocity": 0.01
+    }
+}
+  
+    
+    # Filter data
+    filtered_data = data[
+        (data['OddsRatio'] >= min_or) &
+        (data['PairFrequency'] >= min_freq)
+    ].copy()
+
+    # Create condition categories legend HTML
+    legend_html = """
+    <div style="position: absolute; top: 10px; left: 10px; background: white; padding: 10px; 
+                border: 1px solid #ccc; font-size: 12px;">
+        <div style="font-weight: bold; margin-bottom: 5px;">Condition Categories</div>
+    """
+    for category, color in sorted(SYSTEM_COLORS.items()):
+        if category != "Other":
+            legend_html += f"""
+            <div style="margin: 2px 0;">
+                <div style="display: inline-block; width: 20px; height: 20px; background: {color}50;
+                     border: 1px solid {color}; margin-right: 5px;"></div>
+                {category}
+            </div>
+            """
+    legend_html += "</div>"
+
+    # Create patient count ranges legend
+    count_legend = """
+    <div style="position: absolute; top: 10px; right: 10px; background: white; padding: 10px; 
+                border: 1px solid #ccc; font-size: 12px;">
+        <div style="font-weight: bold; margin-bottom: 5px;">Patient Count Ranges</div>
+    """
+    
+    # Get frequency percentiles for edge widths
+    freqs = filtered_data['PairFrequency'].values
+    percentiles = np.percentile(freqs, [0, 20, 40, 60, 80, 100])
+    
+    # Add ranges to legend
+    ranges = [
+        (percentiles[0], percentiles[1], "0% - 20%"),
+        (percentiles[1], percentiles[2], "20% - 40%"),
+        (percentiles[2], percentiles[3], "40% - 60%"),
+        (percentiles[3], percentiles[4], "60% - 80%"),
+        (percentiles[4], percentiles[5], "80%+")
+    ]
+    
+    for i, (lower, upper, label) in enumerate(ranges, 1):
+        count_legend += f"""
+        <div style="margin: 5px 0;">
+            <div style="border-bottom: {i}px solid black; width: 40px; display: inline-block; margin-right: 5px;"></div>
+            {int(lower)} ≤ Patients < {int(upper)} ({label})
+        </div>
+        """
+    count_legend += "</div>"
+
+    # Add nodes with system-based layout and pastel colors
+    unique_systems = set(condition_categories[cond] for cond in set(filtered_data['ConditionA']) | set(filtered_data['ConditionB']))
+    radius = 300
+    system_angles = {sys: i * (2 * math.pi / len(unique_systems)) for i, sys in enumerate(sorted(unique_systems))}
+    
+    # Add nodes with pastel colors
+    for condition in set(filtered_data['ConditionA']) | set(filtered_data['ConditionB']):
+        system = condition_categories.get(condition, "Other")
+        base_color = SYSTEM_COLORS.get(system, SYSTEM_COLORS["Other"])
+        angle = system_angles[system]
+        
+        # Add random variation to position
+        x = radius * math.cos(angle) + random.uniform(-50, 50)
+        y = radius * math.sin(angle) + random.uniform(-50, 50)
+        
+        # Create node with pastel color
+        net.add_node(
+            condition,
+            label=condition,
+            title=f"{condition}\nSystem: {system}",
+            x=x,
+            y=y,
+            color={'background': f"{base_color}50", 'border': base_color},
+            size=30
+        )
+
+    # Add edges
+    for _, row in filtered_data.iterrows():
+        freq = row['PairFrequency']
+        
+        # Determine edge width based on frequency percentiles
+        if freq < percentiles[1]:
+            width = 1
+        elif freq < percentiles[2]:
+            width = 2
+        elif freq < percentiles[3]:
+            width = 3
+        elif freq < percentiles[4]:
+            width = 4
+        else:
+            width = 5
+
+        edge_label = f"OR: {row['OddsRatio']:.1f}\nYears: {row['MedianDurationYearsWithIQR']}"
+        
+        net.add_edge(
+            row['ConditionA'],
+            row['ConditionB'],
+            label=edge_label,
+            title=edge_label,
+            width=width,
+            arrows={'to': {'enabled': True, 'scaleFactor': 0.5}},
+            color={'color': 'rgba(128,128,128,0.7)', 'highlight': 'black'},
+            font={'size': 8, 'color': 'black', 'strokeWidth': 2, 'strokeColor': 'white'}
+        )
+
+    # Add physics control and export functionality
+    export_script = """
+    <script type="text/javascript">
+    window.addEventListener('load', function() {
+        const network = document.querySelector('[data-visjs-network]').__vis_network__;
+        network.once('stabilizationIterationsDone', function() {
+            network.setOptions({ physics: false });
+        });
+    });
+
+    function exportHighRes() {
+        const network = document.getElementsByTagName('canvas')[0];
+        const scale = 3;
+        const exportCanvas = document.createElement('canvas');
+        exportCanvas.width = network.width * scale;
+        exportCanvas.height = network.height * scale;
+        const ctx = exportCanvas.getContext('2d');
+        ctx.scale(scale, scale);
+        ctx.drawImage(network, 0, 0);
+        const link = document.createElement('a');
+        link.download = 'trajectory_network.png';
+        link.href = exportCanvas.toDataURL('image/png');
+        link.click();
+    }
+
+    function downloadNetwork() {
+        const htmlContent = document.documentElement.outerHTML;
+        const blob = new Blob([htmlContent], { type: 'text/html' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'network.html';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+    }
+    </script>
+    """
+
+    buttons_html = """
+    <div style="position: fixed; bottom: 20px; right: 20px; z-index: 1000;
+                display: flex; gap: 10px;">
+        <button onclick="exportHighRes()" 
+                style="padding: 10px 20px; font-size: 16px; background-color: #4CAF50;
+                       color: white; border: none; border-radius: 5px; cursor: pointer;">
+            📸 Download High-Res Image
+        </button>
+        <button onclick="downloadNetwork()" 
+                style="padding: 10px 20px; font-size: 16px; background-color: #4CAF50;
+                       color: white; border: none; border-radius: 5px; cursor: pointer;">
+            📥 Download Network
+        </button>
+    </div>
+    """
+
+    # Generate final HTML with all components
+    network_html = net.generate_html()
+    final_html = network_html.replace(
+        '</head>',
+        export_script + '</head>'
+    ).replace(
+        '</body>',
+        f'{legend_html}{count_legend}{buttons_html}</body>'
+    )
+    
+    return final_html
 
     
-def create_network_visualization(data, min_or, min_freq):
+def create_network_visualization2(data, min_or, min_freq):
     """Create network visualization with legends with pastel colors matching paper style"""
     net = Network(height="800px", width="100%", bgcolor='white', font_color='black', directed=True)
     

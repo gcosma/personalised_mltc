@@ -325,41 +325,53 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
     net.set_options("""
     {
         "nodes": {
-            "font": {"size": 24, "strokeWidth": 2},
-            "scaling": {"min": 20, "max": 50}
+            "font": {"size": 14},
+            "shape": "dot"
         },
         "edges": {
-            "color": {"inherit": false},
             "font": {
-                "size": 18,
-                "strokeWidth": 2,
+                "size": 8,
                 "align": "middle",
-                "background": "rgba(255, 255, 255, 0.8)"
+                "background": "white"
             },
             "smooth": {
-                "type": "continuous",
+                "type": "dynamic",
                 "roundness": 0.2
             }
         },
         "physics": {
             "enabled": true,
-            "barnesHut": {
-                "gravitationalConstant": -4000,
-                "centralGravity": 0.1,
-                "springLength": 250,
-                "springConstant": 0.03,
-                "damping": 0.1,
-                "avoidOverlap": 1
-            },
-            "minVelocity": 0.75,
             "stabilization": {
                 "enabled": true,
                 "iterations": 1000,
-                "updateInterval": 25
-            }
+                "updateInterval": 25,
+                "fit": true
+            },
+            "barnesHut": {
+                "gravitationalConstant": -2000,
+                "centralGravity": 0.3,
+                "springLength": 200,
+                "avoidOverlap": 1
+            },
+            "minVelocity": 0.75
+        },
+        "interaction": {
+            "dragNodes": true,
+            "dragView": true,
+            "zoomView": true,
+            "selectable": true,
+            "selectConnectedEdges": true,
+            "hoverConnectedEdges": true,
+            "multiselect": true
+        },
+        "manipulation": {
+            "enabled": true,
+            "initiallyActive": true
         }
     }
     """)
+
+    
 
     # Apply initial OR filter
     filtered_data = data[data['OddsRatio'] >= min_or].copy()

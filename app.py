@@ -1059,18 +1059,41 @@ def create_network_visualization(data, min_or, min_freq):
                 "align": "middle",
                 "background": "white"
             },
-            "smooth": {"type": "curvedCW", "roundness": 0.2}
+            "smooth": {
+                "type": "continuous",
+                "roundness": 0.2
+            }
         },
         "physics": {
             "enabled": true,
+            "stabilization": {
+                "enabled": true,
+                "iterations": 1000,
+                "updateInterval": 25,
+                "fit": true,
+                "onlyDynamicEdges": false
+            },
             "barnesHut": {
                 "gravitationalConstant": -2000,
                 "centralGravity": 0.3,
-                "springLength": 200
-            }
+                "springLength": 200,
+                "avoidOverlap": 1
+            },
+            "minVelocity": 0.75,
+            "solver": "repulsion"
+        },
+        "layout": {
+            "improvedLayout": true
         }
     }
     """)
+    
+    # Add event listener to disable physics after stabilization
+    net.set_options('''
+    network.on("stabilizationIterationsDone", function() {
+        network.setOptions({ physics: { enabled: false } });
+    });
+    ''')
 
     # Add nodes with system-based layout and pastel colors
     unique_systems = set(condition_categories[cond] for cond in set(filtered_data['ConditionA']) | set(filtered_data['ConditionB']))

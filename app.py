@@ -320,13 +320,11 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
     """Create network graph matching the personalized analysis visualization with cohort-style edges."""
     # Initialize network with higher resolution settings
     net = Network(height="1200px", width="100%", bgcolor='white', font_color='black', directed=True)
-
-    # Enhanced network options
-    net.set_options("""
-    {
+        net.options = {
         "nodes": {
             "font": {"size": 14},
-            "shape": "dot"
+            "shape": "dot",
+            "fixed": false
         },
         "edges": {
             "font": {
@@ -340,35 +338,15 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
             }
         },
         "physics": {
-            "enabled": true,
-            "stabilization": {
-                "enabled": true,
-                "iterations": 1000,
-                "updateInterval": 25,
-                "fit": true,
-                "onlyDynamicEdges": false
-            },
-            "barnesHut": {
-                "gravitationalConstant": -2000,
-                "centralGravity": 0.3,
-                "springLength": 200,
-                "avoidOverlap": 1
-            },
-            "minVelocity": 0.75
+            "enabled": false
         },
-        "layout": {
-            "improvedLayout": true,
-            "hierarchical": false
-        },
-        "configure": {
-            "enabled": true,
-            "filter": "physics",
-            "showButton": true
+        "interaction": {
+            "dragNodes": true,
+            "dragView": true,
+            "zoomView": true
         }
     }
-    """)
 
-    
 
     # Apply initial OR filter
     filtered_data = data[data['OddsRatio'] >= min_or].copy()
@@ -621,8 +599,19 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
     </div>
     """
 
+    export_script = """
+    <script type="text/javascript">
+    window.addEventListener('load', function() {
+        const network = document.querySelector('[data-visjs-network]').__vis_network__;
+        network.once('stabilizationIterationsDone', function() {
+            network.setOptions({ physics: false });
+        });
+    });
+    </script>
+    """
     # Generate final HTML with all components
     network_html = net.generate_html()
+
     final_html = network_html.replace(
         '</head>',
         export_script + '</head>'

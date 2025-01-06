@@ -320,17 +320,21 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
     """Create network graph matching the personalized analysis visualization with cohort-style edges."""
     # Initialize network with higher resolution settings
     net = Network(height="1200px", width="100%", bgcolor='white', font_color='black', directed=True)
-        net.options = {
+
+    # Enhanced network options
+    net.set_options("""
+    {
         "nodes": {
-            "font": {"size": 14},
-            "shape": "dot",
-            "fixed": false
+            "font": {"size": 24, "strokeWidth": 2},
+            "scaling": {"min": 20, "max": 50}
         },
         "edges": {
+            "color": {"inherit": false},
             "font": {
-                "size": 8,
+                "size": 18,
+                "strokeWidth": 2,
                 "align": "middle",
-                "background": "white"
+                "background": "rgba(255, 255, 255, 0.8)"
             },
             "smooth": {
                 "type": "continuous",
@@ -338,15 +342,24 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
             }
         },
         "physics": {
-            "enabled": false
-        },
-        "interaction": {
-            "dragNodes": true,
-            "dragView": true,
-            "zoomView": true
+            "enabled": true,
+            "barnesHut": {
+                "gravitationalConstant": -4000,
+                "centralGravity": 0.1,
+                "springLength": 250,
+                "springConstant": 0.03,
+                "damping": 0.1,
+                "avoidOverlap": 1
+            },
+            "minVelocity": 0.75,
+            "stabilization": {
+                "enabled": true,
+                "iterations": 1000,
+                "updateInterval": 25
+            }
         }
     }
-
+    """)
 
     # Apply initial OR filter
     filtered_data = data[data['OddsRatio'] >= min_or].copy()
@@ -599,19 +612,8 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
     </div>
     """
 
-    export_script = """
-    <script type="text/javascript">
-    window.addEventListener('load', function() {
-        const network = document.querySelector('[data-visjs-network]').__vis_network__;
-        network.once('stabilizationIterationsDone', function() {
-            network.setOptions({ physics: false });
-        });
-    });
-    </script>
-    """
     # Generate final HTML with all components
     network_html = net.generate_html()
-
     final_html = network_html.replace(
         '</head>',
         export_script + '</head>'
@@ -1045,41 +1047,18 @@ def create_network_visualization(data, min_or, min_freq):
                 "align": "middle",
                 "background": "white"
             },
-            "smooth": {
-                "type": "continuous",
-                "roundness": 0.2
-            }
+            "smooth": {"type": "curvedCW", "roundness": 0.2}
         },
         "physics": {
             "enabled": true,
-            "stabilization": {
-                "enabled": true,
-                "iterations": 1000,
-                "updateInterval": 25,
-                "fit": true,
-                "onlyDynamicEdges": false
-            },
             "barnesHut": {
                 "gravitationalConstant": -2000,
                 "centralGravity": 0.3,
-                "springLength": 200,
-                "avoidOverlap": 1
-            },
-            "minVelocity": 0.75,
-            "solver": "repulsion"
-        },
-        "layout": {
-            "improvedLayout": true
+                "springLength": 200
+            }
         }
     }
     """)
-    
-    # Add event listener to disable physics after stabilization
-    net.set_options('''
-    network.on("stabilizationIterationsDone", function() {
-        network.setOptions({ physics: { enabled: false } });
-    });
-    ''')
 
     # Add nodes with system-based layout and pastel colors
     unique_systems = set(condition_categories[cond] for cond in set(filtered_data['ConditionA']) | set(filtered_data['ConditionB']))

@@ -335,7 +335,7 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
                 "background": "white"
             },
             "smooth": {
-                "type": "dynamic",
+                "type": "continuous",
                 "roundness": 0.2
             }
         },
@@ -345,7 +345,8 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
                 "enabled": true,
                 "iterations": 1000,
                 "updateInterval": 25,
-                "fit": true
+                "fit": true,
+                "onlyDynamicEdges": false
             },
             "barnesHut": {
                 "gravitationalConstant": -2000,
@@ -355,18 +356,14 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
             },
             "minVelocity": 0.75
         },
-        "interaction": {
-            "dragNodes": true,
-            "dragView": true,
-            "zoomView": true,
-            "selectable": true,
-            "selectConnectedEdges": true,
-            "hoverConnectedEdges": true,
-            "multiselect": true
+        "layout": {
+            "improvedLayout": true,
+            "hierarchical": false
         },
-        "manipulation": {
+        "configure": {
             "enabled": true,
-            "initiallyActive": true
+            "filter": "physics",
+            "showButton": true
         }
     }
     """)

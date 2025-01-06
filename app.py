@@ -979,10 +979,12 @@ def create_personalized_analysis(data, patient_conditions, time_horizon=None, ti
 def create_network_visualization(data, min_or, min_freq):
     """Create network visualization with legends with pastel colors matching paper style"""
     net = Network(height="800px", width="100%", bgcolor='white', font_color='black', directed=True)
+    
     net.options = {
     "nodes": {
         "font": {"size": 14},
-        "shape": "dot"
+        "shape": "dot",
+        "fixed": False
     },
     "edges": {
         "font": {
@@ -999,18 +1001,19 @@ def create_network_visualization(data, min_or, min_freq):
         "enabled": True,
         "stabilization": {
             "enabled": True,
-            "iterations": 1000,
+            "iterations": 2000,
+            "updateInterval": 25,
             "fit": True
         },
-        "minVelocity": 0.01
+        "barnesHut": {
+            "gravitationalConstant": -2000,
+            "centralGravity": 0.3,
+            "springLength": 200,
+            "avoidOverlap": 1
+        }
     }
 }
-
-
     
-    # Filter data
-    filtered_data = data[
-        (data['OddsRatio'] >= min_or) &
         (data['PairFrequency'] >= min_freq)
     ].copy()
 

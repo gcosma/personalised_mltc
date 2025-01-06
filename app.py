@@ -1043,27 +1043,43 @@ def create_network_visualization(data, min_or, min_freq):
     net.set_options("""
     {
         "nodes": {
-            "font": {"size": 14},
-            "shape": "dot"
+            "font": {"size": 24, "strokeWidth": 2},
+            "scaling": {"min": 20, "max": 50}
         },
         "edges": {
+            "color": {"inherit": false},
             "font": {
-                "size": 8,
+                "size": 18,
+                "strokeWidth": 2,
                 "align": "middle",
-                "background": "white"
+                "background": "rgba(255, 255, 255, 0.8)"
             },
-            "smooth": {"type": "curvedCW", "roundness": 0.2}
+            "smooth": {
+                "type": "continuous",
+                "roundness": 0.2
+            }
         },
         "physics": {
             "enabled": true,
             "barnesHut": {
-                "gravitationalConstant": -2000,
-                "centralGravity": 0.3,
-                "springLength": 200
+                "gravitationalConstant": -4000,
+                "centralGravity": 0.1,
+                "springLength": 250,
+                "springConstant": 0.03,
+                "damping": 0.1,
+                "avoidOverlap": 1
+            },
+            "minVelocity": 0.75,
+            "stabilization": {
+                "enabled": true,
+                "iterations": 1000,
+                "updateInterval": 25
             }
         }
     }
     """)
+
+
 
     # Add nodes with system-based layout and pastel colors
     unique_systems = set(condition_categories[cond] for cond in set(filtered_data['ConditionA']) | set(filtered_data['ConditionB']))

@@ -23,7 +23,7 @@ CSV_FILES = [
     'Males_45to64.csv',
     'Males_65plus.csv',
     'Males_below45.csv',
-    'FEMALE_45to64_SAIL.csv',
+    'SAIL_FEMALE_45to64.csv',
     'SAIL_FEMALES_65plus.csv',
     'SAIL_FEMALES_below45.csv',    
     'SAIL_MALES_45to64.csv',
@@ -44,7 +44,7 @@ def get_readable_filename(filename):
         return 'Males 65 years and over'
     elif filename == 'Males_below45.csv':
         return 'Males below 45 years'
-    if filename == 'FEMALES_45to64_SAIL.csv':
+    if filename == 'SAIL_FEMALES_45to64.csv':
         return 'Females 45 to 64 years SAIL'
     elif filename == 'SAIL_FEMALES_65plus.csv':
         return 'SAIL Females 65 years and over'

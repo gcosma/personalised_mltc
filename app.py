@@ -45,7 +45,7 @@ def get_readable_filename(filename):
     elif filename == 'Males_below45.csv':
         return 'Males below 45 years'
     if filename == 'FEMALE_45to64_SAIL.csv':
-        return 'SAIL Females 45 to 64 years'
+        return 'Females 45 to 64 years SAIL'
     elif filename == 'SAIL_FEMALE_65plus.csv':
         return 'SAIL Females 65 years and over'
     elif filename == 'SAIL_FEMALE_below45.csv':

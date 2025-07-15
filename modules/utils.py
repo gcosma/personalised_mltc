@@ -1,0 +1,83 @@
+"""
+Utility module for the DECODE app.
+
+Contains general-purpose helper functions.
+"""
+import streamlit as st
+
+def get_readable_filename(filename):
+    
+    
+    # Handle individual datasets
+    if filename == 'Females_45to64.csv':
+        return 'Females 45 to 64 years'
+    elif filename == 'Females_65plus.csv':
+        return 'Females 65 years and over'
+    elif filename == 'Females_below45.csv':
+        return 'Females below 45 years'
+    elif filename == 'Males_45to64.csv':
+        return 'Males 45 to 64 years'
+    elif filename == 'Males_65plus.csv':
+        return 'Males 65 years and over'
+    elif filename == 'Males_below45.csv':
+        return 'Males below 45 years'
+    if filename == 'SAIL_FEMALES_45to64.csv':
+        return 'SAIL Females 45 to 64 years'
+    elif filename == 'SAIL_FEMALES_65plus.csv':
+        return 'SAIL Females 65 years and over'
+    elif filename == 'SAIL_FEMALES_below45.csv':
+        return 'SAIL Females below 45 years'
+    elif filename == 'SAIL_MALES_45to64.csv':
+        return 'SAIL Males 45 to 64 years'
+    elif filename == 'SAIL_MALES_65plus.csv':
+        return 'SAIL Males 65 years and over'
+    elif filename == 'SAIL_MALES_below45.csv':
+        return 'SAIL Males below 45 years'
+    else:
+        return filename
+
+def parse_iqr(iqr_string):
+    """Parse IQR string of format 'median [Q1-Q3]' into (median, q1, q3)"""
+    try:
+        median_str, iqr = iqr_string.split(' [')
+        q1, q3 = iqr.strip(']').split('-')
+        return float(median_str), float(q1), float(q3)
+    except:
+        return 0.0, 0.0, 0.0
+
+def check_password():
+    """Returns `True` if the user had the correct password."""
+    def password_entered():
+        """Checks whether a password entered by the user is correct."""
+        if st.session_state["password"] == st.secrets["password"]:
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  # Don't store password
+        else:
+            st.session_state["password_correct"] = False
+
+    # First run or password not correct
+    if "password_correct" not in st.session_state:
+        # Show input for password
+        st.text_input(
+            "Please enter the password",
+            type="password",
+            key="password",
+            on_change=password_entered
+        )
+        return False
+
+    # Password correct
+    elif st.session_state["password_correct"]:
+        return True
+        
+def add_footer():
+    st.markdown(
+        """
+        <div class="footer">
+            <div class="footer-copyright">
+                <p>© 2024 DECODE Project. Loughborough University. Funded by the National Institute for Health and Care Research (NIHR). <a href="https://decode-project.org/research/"> DECODE Project Website </a> </p>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )  

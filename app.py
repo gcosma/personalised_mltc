@@ -87,7 +87,7 @@ def main():
 
     # Page configuration
     st.set_page_config(
-        page_title="DECODE Project: Multimorbidity Analysis Tool for people with learning disability and MLTCs",
+        page_title="DECODE-MIDAS: DECODE-MIDAS: Multimorbidity in Intellectual Disability Analysis System",
         layout="wide",
         initial_sidebar_state="expanded"
     )
@@ -147,10 +147,9 @@ def main():
     """, unsafe_allow_html=True)
 
     # Header
-    st.title("🏥 DECODE: Multimorbidity Analysis Tool for people with learning disability and MLTCs")
+    st.title("🏥 DECODE-MIDAS: Multimorbidity in Intellectual Disability Analysis System")
     st.markdown("""
-    This tool helps analyse disease trajectories and comorbidity patterns in patient data.
-    Upload your data file to begin analysis.
+    This tool enables analysis of comorbidity patterns and temporal relationships between multiple long-term conditions in adults with intellectual disability, based on observational data from the United Kingdom.
     """ )
 
     try:

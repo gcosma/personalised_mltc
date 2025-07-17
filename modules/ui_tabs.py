@@ -121,15 +121,51 @@ def render_combinations_tab(data):
             st.markdown("### Control Panel")
             try:
                 min_freq_range = (data['PairFrequency'].min(), data['PairFrequency'].max())
-                min_frequency = st.slider(
-                    "Minimum Pair Frequency",
-                    int(min_freq_range[0]),
-                    int(min_freq_range[1]),
-                    int(min_freq_range[0]) if st.session_state.min_frequency is None
-                    else st.session_state.min_frequency,
-                    help="Minimum number of occurrences required"
-                )
-                st.session_state.min_frequency = min_frequency
+                
+                # Initialize session state for both widgets if not exists
+                if st.session_state.min_frequency is None:
+                    st.session_state.min_frequency = int(min_freq_range[0])
+                
+                # Initialize widget keys in session state if not exists
+                if "freq_slider" not in st.session_state:
+                    st.session_state.freq_slider = st.session_state.min_frequency
+                if "freq_input" not in st.session_state:
+                    st.session_state.freq_input = st.session_state.min_frequency
+                
+                # Define callback functions for synchronization
+                def on_slider_change():
+                    st.session_state.min_frequency = st.session_state.freq_slider
+                    st.session_state.freq_input = st.session_state.freq_slider
+                
+                def on_input_change():
+                    st.session_state.min_frequency = st.session_state.freq_input
+                    st.session_state.freq_slider = st.session_state.freq_input
+                
+                # Create two columns for slider and number input
+                freq_col1, freq_col2 = st.columns([2, 1])
+                
+                with freq_col1:
+                    min_frequency_slider = st.slider(
+                        "Minimum Pair Frequency",
+                        int(min_freq_range[0]),
+                        int(min_freq_range[1]),
+                        key="freq_slider",
+                        on_change=on_slider_change,
+                        help="Minimum number of occurrences required"
+                    )
+                
+                with freq_col2:
+                    min_frequency_input = st.number_input(
+                        "Or type value:",
+                        min_value=int(min_freq_range[0]),
+                        max_value=int(min_freq_range[1]),
+                        step=1,
+                        key="freq_input",
+                        on_change=on_input_change,
+                        help="Type exact value"
+                    )
+                
+                min_frequency = st.session_state.min_frequency
 
                 min_percentage_range = (data['Percentage'].min(), data['Percentage'].max())
                 min_percentage = st.slider(

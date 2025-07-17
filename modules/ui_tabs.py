@@ -164,7 +164,7 @@ def render_combinations_tab(data):
                         on_change=on_input_change,
                         help="Type exact value, then click away to register"
                     )
-                    st.caption("💡 After typing, click elsewhere before analyzing")
+                    st.caption("💡 After typing, click elsewhere before analysing")
                 
                 # Use the actual widget return values (these reflect current state including unfocused input)
                 min_frequency = min_frequency_input

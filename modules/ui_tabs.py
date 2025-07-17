@@ -162,10 +162,12 @@ def render_combinations_tab(data):
                         step=1,
                         key="freq_input",
                         on_change=on_input_change,
-                        help="Type exact value"
+                        help="Type exact value, then click away to register"
                     )
+                    st.caption("💡 After typing, click elsewhere before analyzing")
                 
-                min_frequency = st.session_state.min_frequency
+                # Use the actual widget return values (these reflect current state including unfocused input)
+                min_frequency = min_frequency_input
 
                 min_percentage_range = (data['Percentage'].min(), data['Percentage'].max())
                 min_percentage = st.slider(
@@ -197,11 +199,15 @@ def render_combinations_tab(data):
                     st.session_state.combinations_results = None
                     st.session_state.combinations_fig = None
                     
+                    # Use the actual widget values (these reflect current state including unfocused input)
+                    current_min_frequency = min_frequency
+                    current_min_percentage = min_percentage
+                    
                     # Generate new results - use cross-population analysis for combined datasets
                     results_df = analyze_condition_combinations(
                             data,
-                            min_percentage,
-                            min_frequency
+                            current_min_percentage,
+                            current_min_frequency
                         )
 
                     if not results_df.empty:

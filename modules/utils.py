@@ -9,29 +9,29 @@ def get_readable_filename(filename):
     
     
     # Handle individual datasets
-    if filename == 'Females_45to64.csv':
-        return 'Females 45 to 64 years'
-    elif filename == 'Females_65plus.csv':
-        return 'Females 65 years and over'
-    elif filename == 'Females_below45.csv':
-        return 'Females below 45 years'
-    elif filename == 'Males_45to64.csv':
-        return 'Males 45 to 64 years'
-    elif filename == 'Males_65plus.csv':
-        return 'Males 65 years and over'
-    elif filename == 'Males_below45.csv':
-        return 'Males below 45 years'
-    if filename == 'SAIL_FEMALES_45to64.csv':
+    if filename == 'CPRD_Females_45to64.csv':
+        return 'CPRD Females 45 to 64 years'
+    elif filename == 'CPRD_Females_65plus.csv':
+        return 'CPRD Females 65 years and over'
+    elif filename == 'CPRD_Females_below45.csv':
+        return 'CPRD Females below 45 years'
+    elif filename == 'CPRD_Males_45to64.csv':
+        return 'CPRD Males 45 to 64 years'
+    elif filename == 'CPRD_Males_65plus.csv':
+        return 'CPRD Males 65 years and over'
+    elif filename == 'CPRD_Males_below45.csv':
+        return 'CPRD Males below 45 years'
+    if filename == 'SAIL_Females_45to64.csv':
         return 'SAIL Females 45 to 64 years'
-    elif filename == 'SAIL_FEMALES_65plus.csv':
+    elif filename == 'SAIL_Females_65plus.csv':
         return 'SAIL Females 65 years and over'
-    elif filename == 'SAIL_FEMALES_below45.csv':
+    elif filename == 'SAIL_Females_below45.csv':
         return 'SAIL Females below 45 years'
-    elif filename == 'SAIL_MALES_45to64.csv':
+    elif filename == 'SAIL_Males_45to64.csv':
         return 'SAIL Males 45 to 64 years'
-    elif filename == 'SAIL_MALES_65plus.csv':
+    elif filename == 'SAIL_Males_65plus.csv':
         return 'SAIL Males 65 years and over'
-    elif filename == 'SAIL_MALES_below45.csv':
+    elif filename == 'SAIL_Males_below45.csv':
         return 'SAIL Males below 45 years'
     else:
         return filename

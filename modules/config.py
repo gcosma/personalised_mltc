@@ -6,18 +6,18 @@ Stores all static configuration and constants.
 
 # Individual dataset files
 INDIVIDUAL_CSV_FILES = [
-    'Females_45to64.csv',
-    'Females_65plus.csv', 
-    'Females_below45.csv',
-    'Males_45to64.csv',
-    'Males_65plus.csv',
-    'Males_below45.csv',
-    'SAIL_FEMALES_45to64.csv',
-    'SAIL_FEMALES_65plus.csv',
-    'SAIL_FEMALES_below45.csv',    
-    'SAIL_MALES_45to64.csv',
-    'SAIL_MALES_65plus.csv',
-    'SAIL_MALES_below45.csv'
+    'CPRD_Females_45to64.csv',
+    'CPRD_Females_65plus.csv', 
+    'CPRD_Females_below45.csv',
+    'CPRD_Males_45to64.csv',
+    'CPRD_Males_65plus.csv',
+    'CPRD_Males_below45.csv',
+    'SAIL_Females_45to64.csv',
+    'SAIL_Females_65plus.csv',
+    'SAIL_Females_below45.csv',    
+    'SAIL_Males_45to64.csv',
+    'SAIL_Males_65plus.csv',
+    'SAIL_Males_below45.csv'
     ]
 
 # Disease category mappings

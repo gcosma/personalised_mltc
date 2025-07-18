@@ -19,7 +19,8 @@ def convert_text_case(text):
     # Define abbreviation mappings (abbreviation -> full form)
     abbreviation_mappings = {
         "CKD": "Chronic Kidney Disease",
-        "IBD": "Inflammatory Bowel Disease"
+        "IBD": "Inflammatory Bowel Disease",
+        "PVD": "Peripheral Vascular Disease"
     }
     
     # First, check if the entire text is an abbreviation that should be expanded
@@ -28,7 +29,7 @@ def convert_text_case(text):
         return abbreviation_mappings[text_upper]
     
     # Define acronyms that should remain uppercase (for other cases)
-    acronyms = {"CKD", "IBD"}
+    acronyms = {"CKD", "IBD", "PVD"}
     
     # Split by spaces and process each word
     words = str(text).split()

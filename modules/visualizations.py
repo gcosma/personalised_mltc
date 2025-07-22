@@ -375,11 +375,20 @@ def create_network_visualization(data, min_or, min_freq):
             "smooth": {"type": "curvedCW", "roundness": 0.2}
         },
         "physics": {
-            "enabled": true,
+            "enabled": false,
             "barnesHut": {
-                "gravitationalConstant": -2000,
-                "centralGravity": 0.3,
-                "springLength": 200
+                "gravitationalConstant": -4000,
+                "centralGravity": 0.1,
+                "springLength": 250,
+                "springConstant": 0.03,
+                "damping": 0.1,
+                "avoidOverlap": 1
+            },
+            "minVelocity": 0.75,
+            "stabilization": {
+                "enabled": true,
+                "iterations": 1000,
+                "updateInterval": 25
             }
         }
     }

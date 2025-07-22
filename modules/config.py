@@ -28,6 +28,7 @@ condition_categories = {
     "Heart Failure": "Circulatory",
     "Hypertension": "Circulatory",
     "Peripheral Vascular Disease": "Circulatory",
+    "PVD": "Circulatory",
     "Stroke": "Circulatory",
     "Barretts Oesophagus": "Digestive",
     "Chronic Constipation": "Digestive",
@@ -35,6 +36,7 @@ condition_categories = {
     "Cirrhosis": "Digestive",
     "Dysphagia": "Digestive",
     "IBD": "Digestive",
+    "Inflammatory Bowel Disease": "Digestive",
     "Reflux Disorders": "Digestive",
     "Hearing Loss": "Ear",
     "Addisons Disease": "Endocrine",
@@ -43,6 +45,7 @@ condition_categories = {
     "Thyroid Disorders": "Endocrine",
     "Visual Impairment": "Eye",
     "CKD": "Genitourinary",
+    "Chronic Kidney Disease": "Genitourinary",
     "Menopausal And Perimenopausal": "Genitourinary",
     
     "Dementia": "Mental",

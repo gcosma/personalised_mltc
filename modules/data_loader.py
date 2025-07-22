@@ -23,8 +23,8 @@ def load_and_process_data(input_file):
             print(f"Response status code: {response.status_code}")  # Debug print
             data = pd.read_csv(StringIO(response.text))
             
-            # Apply preprocessing to clean up condition names (first two columns)
-            data = preprocess_dataframe(data, columns=[0, 1])
+            # Apply preprocessing to clean up condition names (ConditionA, ConditionB, and Precedence columns)
+            data = preprocess_dataframe(data, columns=[0, 1, 13])
         except Exception as e:
             print(f"Error fetching data: {str(e)}")  # Debug print   
             raise

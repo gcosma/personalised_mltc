@@ -20,7 +20,6 @@ A Streamlit application for analysing disease trajectory patterns using populati
 personalised_mltc/
 ├── app.py
 ├── requirements.txt
-├── decode-logo.png
 ├── README.md
 ├── data/
 │   ├── raw/

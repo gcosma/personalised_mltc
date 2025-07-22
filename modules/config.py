@@ -28,7 +28,6 @@ condition_categories = {
     "Heart Failure": "Circulatory",
     "Hypertension": "Circulatory",
     "Peripheral Vascular Disease": "Circulatory",
-    "PVD": "Circulatory",
     "Stroke": "Circulatory",
     "Barretts Oesophagus": "Digestive",
     "Chronic Constipation": "Digestive",
@@ -44,10 +43,8 @@ condition_categories = {
     "Polycystic Ovary Syndrome": "Endocrine",
     "Thyroid Disorders": "Endocrine",
     "Visual Impairment": "Eye",
-    "CKD": "Genitourinary",
     "Chronic Kidney Disease": "Genitourinary",
     "Menopausal And Perimenopausal": "Genitourinary",
-    
     "Dementia": "Mental",
     "Mental Illness": "Mental",
     "Tourette": "Mental",

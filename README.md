@@ -1,6 +1,6 @@
 # DECODE-MIDAS: Multimorbidity in Intellectual Disability Analysis System
 
-A Streamlit application for analyzing disease trajectory patterns using population-level healthcare data from CPRD and SAIL datasets.
+A Streamlit application for analysing disease trajectory patterns using population-level healthcare data from CPRD and SAIL datasets.
 
 ## Quick Start
 
@@ -13,8 +13,6 @@ A Streamlit application for analyzing disease trajectory patterns using populati
    ```bash
    python -m streamlit run app.py
    ```
-
-The application will be available at `http://localhost:8501`
 
 ## Project Structure
 
@@ -50,12 +48,12 @@ personalised_mltc/
 
 ## Directory Structure
 
-### `/data/` - Three-Tier Data Organization
+### `/data/` - Three-Tier Data Organisation
 
 The data directory uses a structured approach to manage healthcare datasets:
 
 - **`data/raw/`** - Original, unmodified CSV files containing condition pair data from CPRD and SAIL datasets
-- **`data/preprocessed/`** - Processed versions with enhanced text cleaning and standardization (includes expanded abbreviations like "Chronic Kidney Disease" for "CKD")  
+- **`data/preprocessed/`** - Processed versions with enhanced text cleaning and standardisation (includes expanded abbreviations like "Chronic Kidney Disease" for "CKD")  
 - **`data/individual_conditions/`** - Extracted individual condition counts and prevalences derived from the pair data
 
 This structure maintains data integrity while providing clean, analysis-ready files for the application.
@@ -65,9 +63,9 @@ This structure maintains data integrity while providing clean, analysis-ready fi
 Contains the modular components that power the Streamlit application:
 
 - **`analysis.py`** - Statistical analysis functions (sensitivity analysis, condition combinations)
-- **`config.py`** - System color mappings and condition categorizations 
+- **`config.py`** - System colour mappings and condition categorisations 
 - **`data_loader.py`** - Data loading with preprocessing pipeline integration
-- **`preprocessing.py`** - Text standardization and abbreviation expansion
+- **`preprocessing.py`** - Text standardisation and abbreviation expansion
 - **`ui_tabs.py`** - Individual tab rendering logic for the Streamlit interface
 - **`utils.py`** - Utility functions for data parsing and manipulation
 - **`visualizations.py`** - Network graphs, statistical plots, and HTML report generation
@@ -113,5 +111,5 @@ The Streamlit application provides several analysis modes:
 1. **Sensitivity Analysis** - Explore how odds ratio thresholds affect trajectory discovery
 2. **Condition Combinations** - Identify prevalent condition patterns in the population  
 3. **Personalised Analysis** - Generate patient-specific trajectory reports
-4. **Trajectory Filter** - Custom network visualization with filtering options
+4. **Trajectory Filter** - Custom network visualisation with filtering options
 5. **Cohort Network** - Population-level condition relationship networks

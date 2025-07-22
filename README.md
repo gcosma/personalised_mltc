@@ -48,15 +48,13 @@ personalised_mltc/
 
 ## Directory Structure
 
-### `/data/` - Three-Tier Data Organisation
+### `/data/` - Data Organisation
 
-The data directory uses a structured approach to manage healthcare datasets:
+The data directory is organised in three subdirectories:
 
 - **`data/raw/`** - Original, unmodified CSV files containing condition pair data from CPRD and SAIL datasets
 - **`data/preprocessed/`** - Processed versions with enhanced text cleaning and standardisation (includes expanded abbreviations like "Chronic Kidney Disease" for "CKD")  
 - **`data/individual_conditions/`** - Extracted individual condition counts and prevalences derived from the pair data
-
-This structure maintains data integrity while providing clean, analysis-ready files for the application.
 
 ### `/modules/` - Core Application Logic
 
@@ -101,8 +99,6 @@ Contains Jupyter notebooks for additional analysis and research:
 - **`Personalisation_Paper.ipynb`** - Personalisation methodology development
 - **`PowerCalc.ipynb`** - Statistical power calculations
 - **`app.ipynb`** - Notebook version of the application for development
-
-These notebooks can be run independently and are primarily for research and development purposes. They are supplementary to the main Streamlit application.
 
 ## Application Features
 

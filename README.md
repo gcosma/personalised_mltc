@@ -20,27 +20,28 @@ The application will be available at `http://localhost:8501`
 
 ```
 personalised_mltc/
-├── app.py                     # Main Streamlit application
-├── requirements.txt           # Python dependencies
-├── decode-logo.png           # Application logo
-├── README.md                 # This file
-├── data/                     # Data storage (3-tier structure)
-│   ├── raw/                  # Original CSV files
-│   ├── preprocessed/         # Cleaned data with enhanced text processing
-│   └── individual_conditions/ # Individual condition extracts
-├── modules/                  # Core application modules
+├── app.py
+├── requirements.txt
+├── decode-logo.png
+├── README.md
+├── data/
+│   ├── raw/
+│   ├── preprocessed/
+│   ├── individual_conditions/
+│   └── decode-logo.png
+├── modules/
 │   ├── __init__.py
-│   ├── analysis.py           # Statistical analysis functions
-│   ├── config.py             # Configuration and mappings
-│   ├── data_loader.py        # Data loading and processing
-│   ├── preprocessing.py      # Text preprocessing utilities
-│   ├── ui_tabs.py           # Streamlit tab rendering functions
-│   ├── utils.py             # General utility functions
-│   └── visualizations.py    # Plotting and network visualization
-├── tools/                    # Data processing scripts
-│   ├── preprocess_data.py           # Batch preprocessing tool
-│   └── extract_individual_conditions.py # Individual condition extraction
-└── notebooks/                # Supplementary Jupyter notebooks
+│   ├── analysis.py
+│   ├── config.py
+│   ├── data_loader.py
+│   ├── preprocessing.py
+│   ├── ui_tabs.py
+│   ├── utils.py
+│   └── visualizations.py
+├── tools/
+│   ├── preprocess_data.py
+│   └── extract_individual_conditions.py
+└── notebooks/
     ├── DECODECohortPaper.ipynb
     ├── Personalisation_Paper.ipynb
     ├── PowerCalc.ipynb

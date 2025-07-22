@@ -1,4 +1,4 @@
-# DECODE: Personalised Multi-Long-Term Condition Analysis
+# DECODE-MIDAS: Multimorbidity in Intellectual Disability Analysis System
 
 A Streamlit application for analyzing disease trajectory patterns using population-level healthcare data from CPRD and SAIL datasets.
 

@@ -15,7 +15,7 @@ def load_and_process_data(input_file):
         # Handle individual datasets
         # Use secrets configuration or default to main branch
         branch = st.secrets.get('github_branch', 'main')
-        github_url = f"https://raw.githubusercontent.com/gcosma/personalised_mltc/main/data/{input_file}"
+        github_url = f"https://raw.githubusercontent.com/gcosma/personalised_mltc/main/data/raw/{input_file}"
         print(f"Attempting to load from URL: {github_url}")  # Debug print
         try:
             response = requests.get(github_url)

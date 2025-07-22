@@ -5,5 +5,3 @@ prevalence_explanation_helper.py
 prevalence_explanation_Females_below45.txt
 prevalence_explanation_Females_65plus.txt
 prevalence_explanation_Females_45to64_backup.txt
-extract_individual_conditions.py
-preprocess_data.py

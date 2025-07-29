@@ -633,96 +633,118 @@ def render_trajectory_filter_tab(data):
             st.markdown('<div class="control-panel">', unsafe_allow_html=True)
             st.markdown("### Control Panel")
             
+            # Initialize button state
+            generate_button = False
+            
             try:
-                # Get absolute min/max values from data
+                # Get absolute min/max values from data for resetting and slider ranges
                 absolute_min_or = float(data['OddsRatio'].min())
                 absolute_max_or = float(data['OddsRatio'].max())
                 absolute_min_freq = int(data['PairFrequency'].min())
                 absolute_max_freq = int(data['PairFrequency'].max())
-                
-                # Get constraints based on selected conditions
-                constraint_max_or, constraint_max_freq, constraint_max_time, condition_details = get_condition_constraints(
-                    data, st.session_state.selected_conditions
-                )
-                
-                # Create constraint messages
-                or_constraint_msg = ""
-                freq_constraint_msg = ""
-                if constraint_max_or is not None:
-                    limiting_conditions = [cond for cond, details in condition_details.items() 
-                                         if details['max_or'] == constraint_max_or]
-                    or_constraint_msg = f"Maximum available for selected conditions ({', '.join(limiting_conditions)})"
-                    
-                if constraint_max_freq is not None:
-                    limiting_conditions = [cond for cond, details in condition_details.items() 
-                                         if details['max_freq'] == constraint_max_freq]
-                    freq_constraint_msg = f"Maximum available for selected conditions ({', '.join(limiting_conditions)})"
+                absolute_max_years = math.ceil(data['MedianDurationYearsWithIQR']
+                                        .apply(lambda x: parse_iqr(x)[0]).max())
 
-                # Create constrained sliders
-                min_or = create_constrained_slider_with_input(
-                    "Minimum Odds Ratio",
-                    absolute_min_or, absolute_max_or,
-                    st.session_state.min_or,
-                    0.1, "custom_min_or",
-                    "Filter trajectories by minimum odds ratio",
-                    is_float=True, show_tip=True,
-                    constraint_max=constraint_max_or,
-                    constraint_message=or_constraint_msg
-                )
-
-                min_freq = create_constrained_slider_with_input(
-                    "Minimum Frequency",
-                    absolute_min_freq, absolute_max_freq,
-                    getattr(st.session_state, 'min_freq', absolute_min_freq),
-                    1, "custom_min_freq",
-                    "Minimum number of occurrences required",
-                    is_float=False,
-                    constraint_max=constraint_max_freq,
-                    constraint_message=freq_constraint_msg
-                )
-
-                # Update session state
-                st.session_state.min_or = min_or
-                st.session_state.min_freq = min_freq
-
-                # Filter data based on current values
-                filtered_data = data[
-                    (data['OddsRatio'] >= min_or) &
-                    (data['PairFrequency'] >= min_freq)
-                ]
-
-                # Get conditions from filtered data
-                unique_conditions = sorted(set(
-                    filtered_data['ConditionA'].unique()) |
-                    set(filtered_data['ConditionB'].unique())
-                )
-
-                # Condition selection callback
+                # Condition selection callback to reset filters
                 def on_condition_select_callback():
                     st.session_state.selected_conditions = st.session_state.custom_select
-                    # Clear any constraint messages when conditions change
+                    newly_selected_conditions = st.session_state.custom_select
+
+                    # Reset OR and Freq filters to their minimums
+                    st.session_state.min_or = absolute_min_or
+                    st.session_state.min_freq = absolute_min_freq
+
+                    # Calculate constraints to find the new default for Time Horizon
+                    _, _, constraint_max_time, _ = get_condition_constraints(
+                        data, newly_selected_conditions
+                    )
+
+                    # Set new defaults for Time Horizon and Margin
+                    new_time_horizon_default = constraint_max_time if constraint_max_time and constraint_max_time > 0 else absolute_max_years
+                    new_time_margin_default = 0.10
+
+                    st.session_state.time_horizon = new_time_horizon_default
+                    st.session_state.time_margin = new_time_margin_default
+
+                    # Reset the underlying slider/input widget states
+                    if 'custom_min_or_slider' in st.session_state:
+                        st.session_state.custom_min_or_slider = absolute_min_or
+                        st.session_state.custom_min_or_input = absolute_min_or
+                    if 'custom_min_freq_slider' in st.session_state:
+                        st.session_state.custom_min_freq_slider = absolute_min_freq
+                        st.session_state.custom_min_freq_input = absolute_min_freq
+                    if 'custom_time_horizon_slider' in st.session_state:
+                        st.session_state.custom_time_horizon_slider = new_time_horizon_default
+                        st.session_state.custom_time_horizon_input = new_time_horizon_default
+                    if 'custom_time_margin_slider' in st.session_state:
+                        st.session_state.custom_time_margin_slider = new_time_margin_default
+                        st.session_state.custom_time_margin_input = new_time_margin_default
+
+                    # Clear any constraint messages
                     for key in st.session_state:
                         if key.endswith('_constraint_msg'):
                             st.session_state[key] = ""
 
-                # Show all available conditions (no filtering needed since sliders are constrained)
-                selected_conditions = st.multiselect(
+                # --- Step 1: Select Conditions ---
+                st.multiselect(
                     "Select Initial Conditions",
                     options=total_unique_conditions_unfiltered,
                     default=st.session_state.selected_conditions,
                     key="custom_select",
                     on_change=on_condition_select_callback,
-                    help="Choose conditions - sliders will be constrained to valid ranges"
+                    help="Choose conditions to begin. Filters will appear after selection."
                 )
+                
+                selected_conditions = st.session_state.selected_conditions
 
-                # Time horizon and margin sliders (only show if conditions are selected)
+                # --- Step 2: Show filters only after conditions are selected ---
                 if selected_conditions:
-                    max_years = math.ceil(data['MedianDurationYearsWithIQR']
-                                    .apply(lambda x: parse_iqr(x)[0]).max())
+                    st.markdown("---") # Visual separator
+                    
+                    # Get constraints based on selected conditions
+                    constraint_max_or, constraint_max_freq, constraint_max_time, condition_details = get_condition_constraints(
+                        data, selected_conditions
+                    )
+                    
+                    # Create constraint messages
+                    or_constraint_msg = ""
+                    freq_constraint_msg = ""
+                    if constraint_max_or is not None:
+                        limiting_conditions = [cond for cond, details in condition_details.items() 
+                                             if details['max_or'] == constraint_max_or]
+                        or_constraint_msg = f"Maximum available for selected conditions ({', '.join(limiting_conditions)})"
+                        
+                    if constraint_max_freq is not None:
+                        limiting_conditions = [cond for cond, details in condition_details.items() 
+                                             if details['max_freq'] == constraint_max_freq]
+                        freq_constraint_msg = f"Maximum available for selected conditions ({', '.join(limiting_conditions)})"
+
+                    # Create constrained sliders
+                    min_or = create_constrained_slider_with_input(
+                        "Minimum Odds Ratio",
+                        absolute_min_or, absolute_max_or,
+                        st.session_state.min_or,
+                        0.1, "custom_min_or",
+                        "Filter trajectories by minimum odds ratio",
+                        is_float=True, show_tip=True,
+                        constraint_max=constraint_max_or,
+                        constraint_message=or_constraint_msg
+                    )
+
+                    min_freq = create_constrained_slider_with_input(
+                        "Minimum Frequency",
+                        absolute_min_freq, absolute_max_freq,
+                        getattr(st.session_state, 'min_freq', absolute_min_freq),
+                        1, "custom_min_freq",
+                        "Minimum number of occurrences required",
+                        is_float=False,
+                        constraint_max=constraint_max_freq,
+                        constraint_message=freq_constraint_msg
+                    )
                     
                     time_horizon = create_constrained_slider_with_input(
                         "Time Horizon (years)",
-                        1.0, float(max_years),
+                        1.0, float(absolute_max_years),
                         float(st.session_state.time_horizon),
                         0.5, "custom_time_horizon",
                         "Maximum time period to consider",
@@ -740,20 +762,21 @@ def render_trajectory_filter_tab(data):
                         is_float=True
                     )
                     
+                    # Update session state
+                    st.session_state.min_or = min_or
+                    st.session_state.min_freq = min_freq
                     st.session_state.time_horizon = time_horizon
+                    st.session_state.time_margin = time_margin
 
-                # Generate button
-                generate_button = st.button(
-                    "🔄 Generate Network",
-                    key="custom_generate",
-                    help="Click to generate trajectory network",
-                    disabled=not bool(selected_conditions)
-                )
+                    # Generate button
+                    generate_button = st.button(
+                        "🔄 Generate Network",
+                        key="custom_generate",
+                        help="Click to generate trajectory network"
+                    )
 
             except Exception as e:
                 st.error(f"Error in custom trajectory analysis: {str(e)}")
-                selected_conditions = []
-                generate_button = False
                 
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -761,6 +784,18 @@ def render_trajectory_filter_tab(data):
         if selected_conditions and generate_button:
             with st.spinner("🌐 Generating network..."):
                 try:
+                    # Fetch current filter values from session state for this run
+                    min_or_val = st.session_state.min_or
+                    min_freq_val = st.session_state.min_freq
+                    time_horizon_val = st.session_state.time_horizon
+                    time_margin_val = st.session_state.time_margin
+
+                    # Filter data based on the active filters
+                    filtered_data = data[
+                        (data['OddsRatio'] >= min_or_val) &
+                        (data['PairFrequency'] >= min_freq_val)
+                    ]
+                    
                     # Clear previous network
                     st.session_state.network_html = None
                     
@@ -768,9 +803,9 @@ def render_trajectory_filter_tab(data):
                     html_content = create_network_graph(
                         filtered_data,
                         selected_conditions,
-                        min_or,
-                        st.session_state.time_horizon,
-                        st.session_state.time_margin
+                        min_or_val,
+                        time_horizon_val,
+                        time_margin_val
                     )
                     st.session_state.network_html = html_content
                     st.components.v1.html(html_content, height=800)

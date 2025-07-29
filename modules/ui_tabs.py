@@ -31,34 +31,33 @@ def create_slider_with_input(label, min_val, max_val, current_val, step, key_pre
     Returns:
         The current value from the widgets
     """
-    # Clamp the current value to be within the allowed range
-    current_val = max(min_val, min(max_val, current_val))
-    
     slider_key = f"{key_prefix}_slider"
     input_key = f"{key_prefix}_input"
     
-    # Initialize session state if not exists
+    # Initialize session state if not exists, clamping the initial value
     if slider_key not in st.session_state:
-        st.session_state[slider_key] = current_val
+        st.session_state[slider_key] = max(min_val, min(max_val, current_val))
     if input_key not in st.session_state:
-        st.session_state[input_key] = current_val
+        st.session_state[input_key] = max(min_val, min(max_val, current_val))
     
     # Define callback functions
     def on_slider_change():
-        st.session_state[input_key] = st.session_state[slider_key]
+        # Ensure the input value is clamped to the slider's range
+        st.session_state[input_key] = max(min_val, min(max_val, st.session_state[slider_key]))
     
     def on_input_change():
-        st.session_state[slider_key] = st.session_state[input_key]
+        # Ensure the slider value is clamped to the input's range
+        st.session_state[slider_key] = max(min_val, min(max_val, st.session_state[input_key]))
     
     # Create columns
     col1, col2 = st.columns([2, 1])
     
     with col1:
+        # Remove the value parameter - let Streamlit use session state automatically
         slider_val = st.slider(
             label,
             min_value=min_val,
             max_value=max_val,
-            value=current_val,  # Use the clamped value here
             step=step,
             key=slider_key,
             on_change=on_slider_change,
@@ -66,11 +65,11 @@ def create_slider_with_input(label, min_val, max_val, current_val, step, key_pre
         )
     
     with col2:
+        # Also remove value parameter for number_input
         input_val = st.number_input(
             "Or type:",
             min_value=min_val,
             max_value=max_val,
-            value=current_val, # And here
             step=step,
             key=input_key,
             on_change=on_input_change,
@@ -79,7 +78,7 @@ def create_slider_with_input(label, min_val, max_val, current_val, step, key_pre
         if show_tip:
             st.caption("💡 Press Enter after typing")
     
-    return input_val  # Return the input value as it reflects the most current state
+    return input_val
 
 def render_sensitivity_tab(data):
     st.header("Sensitivity Analysis")
@@ -94,7 +93,6 @@ def render_sensitivity_tab(data):
         with st.container():
             st.markdown('<div class="control-panel">', unsafe_allow_html=True)
             st.markdown("### Control Panel")
-            st.info("💡 **Tip**: After typing values in input fields, press Enter before running analysis")
             
             top_n = create_slider_with_input(
                 "Number of Top Trajectories",
@@ -102,7 +100,7 @@ def render_sensitivity_tab(data):
                 st.session_state.top_n_trajectories,
                 1, "sensitivity_top_n",
                 "Select how many top trajectories to display",
-                is_float=False
+                is_float=False, show_tip=True
             )
             st.session_state.top_n_trajectories = int(top_n)
             
@@ -188,7 +186,6 @@ def render_combinations_tab(data):
         with st.container():
             st.markdown('<div class="control-panel">', unsafe_allow_html=True)
             st.markdown("### Control Panel")
-            st.info("💡 **Tip**: After typing values in input fields, press Enter before running analysis")
             
             try:
                 min_freq_range = (data['PairFrequency'].min(), data['PairFrequency'].max())
@@ -325,7 +322,6 @@ def render_personalised_analysis_tab(data):
         with st.container():
             st.markdown('<div class="control-panel">', unsafe_allow_html=True)
             st.markdown("### Control Panel")
-            st.info("💡 **Tip**: After typing values in input fields, press Enter before running analysis")
             
             # Get min/max values from data
             min_or_value = float(data['OddsRatio'].min())
@@ -453,7 +449,6 @@ def render_trajectory_filter_tab(data):
         with st.container():
             st.markdown('<div class="control-panel">', unsafe_allow_html=True)
             st.markdown("### Control Panel")
-            st.info("💡 **Tip**: After typing values in input fields, press Enter before running analysis")
             
             # Initialize variables with defaults to prevent scoping issues
             selected_conditions = []
@@ -604,7 +599,6 @@ def render_cohort_network_tab(data):
     with control_col:
         with st.container():
             st.markdown("### Control Panel")
-            st.info("💡 **Tip**: After typing values in input fields, press Enter before running analysis")
             
             # Dynamically set slider ranges based on the loaded data
             min_or_range = (data['OddsRatio'].min(), data['OddsRatio'].max())

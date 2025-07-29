@@ -571,7 +571,8 @@ def create_constrained_slider_with_input(label, absolute_min, absolute_max, curr
             # Snap back to constraint max
             st.session_state[slider_key] = constraint_max
             st.session_state[input_key] = constraint_max
-            st.session_state[constraint_key] = f"⚠️ Limited to {constraint_max}{'' if is_float else ''}: {constraint_message}"
+            rounded_str = str(Decimal(str(constraint_max)).quantize(Decimal('0.01'), rounding=ROUND_CEILING))
+            st.session_state[constraint_key] = f"⚠️ Limited to {rounded_str}{'' if is_float else ''}: {constraint_message}"
         else:
             # Normal behavior
             st.session_state[slider_key] = max(absolute_min, min(effective_max, attempted_value))

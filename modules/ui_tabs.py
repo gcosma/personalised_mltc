@@ -14,6 +14,73 @@ from modules.visualizations import (
 )
 from modules.utils import parse_iqr
 
+def create_slider_with_input(label, min_val, max_val, current_val, step, key_prefix, help_text="", is_float=True, show_tip=False):
+    """
+    Create a synchronized slider + number input combination.
+    
+    Args:
+        label: Label for the slider
+        min_val, max_val: Min/max values
+        current_val: Current value
+        step: Step size
+        key_prefix: Unique prefix for session state keys
+        help_text: Help text for both widgets
+        is_float: Whether values are float (True) or int (False)
+        show_tip: Whether to show the "press enter" tip
+    
+    Returns:
+        The current value from the widgets
+    """
+    # Clamp the current value to be within the allowed range
+    current_val = max(min_val, min(max_val, current_val))
+    
+    slider_key = f"{key_prefix}_slider"
+    input_key = f"{key_prefix}_input"
+    
+    # Initialize session state if not exists
+    if slider_key not in st.session_state:
+        st.session_state[slider_key] = current_val
+    if input_key not in st.session_state:
+        st.session_state[input_key] = current_val
+    
+    # Define callback functions
+    def on_slider_change():
+        st.session_state[input_key] = st.session_state[slider_key]
+    
+    def on_input_change():
+        st.session_state[slider_key] = st.session_state[input_key]
+    
+    # Create columns
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        slider_val = st.slider(
+            label,
+            min_value=min_val,
+            max_value=max_val,
+            value=current_val,  # Use the clamped value here
+            step=step,
+            key=slider_key,
+            on_change=on_slider_change,
+            help=help_text
+        )
+    
+    with col2:
+        input_val = st.number_input(
+            "Or type:",
+            min_value=min_val,
+            max_value=max_val,
+            value=current_val, # And here
+            step=step,
+            key=input_key,
+            on_change=on_input_change,
+            help=f"Press Enter to register. {help_text}" if help_text else "Press Enter to register"
+        )
+        if show_tip:
+            st.caption("💡 Press Enter after typing")
+    
+    return input_val  # Return the input value as it reflects the most current state
+
 def render_sensitivity_tab(data):
     st.header("Sensitivity Analysis")
     st.markdown("""
@@ -27,15 +94,17 @@ def render_sensitivity_tab(data):
         with st.container():
             st.markdown('<div class="control-panel">', unsafe_allow_html=True)
             st.markdown("### Control Panel")
-            top_n = st.slider(
+            st.info("💡 **Tip**: After typing values in input fields, press Enter before running analysis")
+            
+            top_n = create_slider_with_input(
                 "Number of Top Trajectories",
-                min_value=1,
-                max_value=20,
-                value=st.session_state.top_n_trajectories,
-                step=1,
-                help="Select how many top trajectories to display"
+                1, 20, 
+                st.session_state.top_n_trajectories,
+                1, "sensitivity_top_n",
+                "Select how many top trajectories to display",
+                is_float=False
             )
-            st.session_state.top_n_trajectories = top_n
+            st.session_state.top_n_trajectories = int(top_n)
             
             analyse_button = st.button(
                 "🚀 Run Analysis",
@@ -119,65 +188,35 @@ def render_combinations_tab(data):
         with st.container():
             st.markdown('<div class="control-panel">', unsafe_allow_html=True)
             st.markdown("### Control Panel")
+            st.info("💡 **Tip**: After typing values in input fields, press Enter before running analysis")
+            
             try:
                 min_freq_range = (data['PairFrequency'].min(), data['PairFrequency'].max())
                 
-                # Initialize session state for both widgets if not exists
+                # Initialize session state
                 if st.session_state.min_frequency is None:
                     st.session_state.min_frequency = int(min_freq_range[0])
                 
-                # Initialize widget keys in session state if not exists
-                if "freq_slider" not in st.session_state:
-                    st.session_state.freq_slider = st.session_state.min_frequency
-                if "freq_input" not in st.session_state:
-                    st.session_state.freq_input = st.session_state.min_frequency
-                
-                # Define callback functions for synchronization
-                def on_slider_change():
-                    st.session_state.min_frequency = st.session_state.freq_slider
-                    st.session_state.freq_input = st.session_state.freq_slider
-                
-                def on_input_change():
-                    st.session_state.min_frequency = st.session_state.freq_input
-                    st.session_state.freq_slider = st.session_state.freq_input
-                
-                # Create two columns for slider and number input
-                freq_col1, freq_col2 = st.columns([2, 1])
-                
-                with freq_col1:
-                    min_frequency_slider = st.slider(
-                        "Minimum Pair Frequency",
-                        int(min_freq_range[0]),
-                        int(min_freq_range[1]),
-                        key="freq_slider",
-                        on_change=on_slider_change,
-                        help="Minimum number of occurrences required"
-                    )
-                
-                with freq_col2:
-                    min_frequency_input = st.number_input(
-                        "Or type value:",
-                        min_value=int(min_freq_range[0]),
-                        max_value=int(min_freq_range[1]),
-                        step=1,
-                        key="freq_input",
-                        on_change=on_input_change,
-                        help="Type exact value, then click away to register"
-                    )
-                    st.caption("💡 After typing, press enter before analysing to register value")
-                
-                # Use the actual widget return values (these reflect current state including unfocused input)
-                min_frequency = min_frequency_input
+                min_frequency = create_slider_with_input(
+                    "Minimum Pair Frequency",
+                    int(min_freq_range[0]), int(min_freq_range[1]),
+                    st.session_state.min_frequency,
+                    1, "combinations_freq",
+                    "Minimum number of occurrences required",
+                    is_float=False, show_tip=True
+                )
+                st.session_state.min_frequency = int(min_frequency)
 
                 min_percentage_range = (data['Percentage'].min(), data['Percentage'].max())
-                min_percentage = st.slider(
+                init_percentage = float(min_percentage_range[0]) if st.session_state.min_percentage is None else st.session_state.min_percentage
+                
+                min_percentage = create_slider_with_input(
                     "Minimum Prevalence (%)",
-                    float(min_percentage_range[0]),
-                    float(min_percentage_range[1]),
-                    float(min_percentage_range[0]) if st.session_state.min_percentage is None
-                    else st.session_state.min_percentage,
-                    0.1,
-                    help="Minimum percentage of population affected"
+                    float(min_percentage_range[0]), float(min_percentage_range[1]),
+                    init_percentage,
+                    0.1, "combinations_percentage",
+                    "Minimum percentage of population affected",
+                    is_float=True
                 )
                 st.session_state.min_percentage = min_percentage
 
@@ -286,19 +325,19 @@ def render_personalised_analysis_tab(data):
         with st.container():
             st.markdown('<div class="control-panel">', unsafe_allow_html=True)
             st.markdown("### Control Panel")
+            st.info("💡 **Tip**: After typing values in input fields, press Enter before running analysis")
             
             # Get min/max values from data
             min_or_value = float(data['OddsRatio'].min())
             max_or_value = float(data['OddsRatio'].max())
             
-            min_or = st.slider(
+            min_or = create_slider_with_input(
                 "Minimum Odds Ratio",
-                min_value=min_or_value,
-                max_value=max_or_value,
-                value=st.session_state.min_or,
-                step=0.5,
-                key="personal_min_or",
-                help="Filter trajectories by minimum odds ratio"
+                min_or_value, max_or_value,
+                st.session_state.min_or,
+                0.5, "personal_min_or",
+                "Filter trajectories by minimum odds ratio",
+                is_float=True, show_tip=True
             )
             st.session_state.min_or = min_or
 
@@ -306,25 +345,23 @@ def render_personalised_analysis_tab(data):
             max_years = math.ceil(data['MedianDurationYearsWithIQR'].apply(
                 lambda x: parse_iqr(x)[0]).max())
             
-            time_horizon = st.slider(
+            time_horizon = create_slider_with_input(
                 "Time Horizon (years)",
-                min_value=1.0,
-                max_value=float(max_years),
-                value=float(st.session_state.time_horizon),
-                step=0.5,
-                key="personal_time_horizon",
-                help="Maximum time period to consider"
+                1.0, float(max_years),
+                float(st.session_state.time_horizon),
+                0.5, "personal_time_horizon",
+                "Maximum time period to consider",
+                is_float=True
             )
             st.session_state.time_horizon = time_horizon
     
-            time_margin = st.slider(
+            time_margin = create_slider_with_input(
                 "Time Margin",
-                min_value=0.0,
-                max_value=0.5,
-                value=st.session_state.time_margin,
-                step=0.05,
-                key="personal_time_margin",
-                help="Allowable variation in time predictions"
+                0.0, 0.5,
+                st.session_state.time_margin,
+                0.05, "personal_time_margin",
+                "Allowable variation in time predictions",
+                is_float=True
             )
             st.session_state.time_margin = time_margin
             
@@ -416,6 +453,16 @@ def render_trajectory_filter_tab(data):
         with st.container():
             st.markdown('<div class="control-panel">', unsafe_allow_html=True)
             st.markdown("### Control Panel")
+            st.info("💡 **Tip**: After typing values in input fields, press Enter before running analysis")
+            
+            # Initialize variables with defaults to prevent scoping issues
+            selected_conditions = []
+            generate_button = False
+            filtered_data = data
+            time_horizon = st.session_state.time_horizon
+            time_margin = st.session_state.time_margin
+            min_or = st.session_state.min_or
+            
             try:
                 # Get min/max values from data
                 min_or_value = float(data['OddsRatio'].min())
@@ -423,23 +470,22 @@ def render_trajectory_filter_tab(data):
                 min_freq_value = int(data['PairFrequency'].min())
                 max_freq_value = int(data['PairFrequency'].max())
                 
-                min_or = st.slider(
+                min_or = create_slider_with_input(
                     "Minimum Odds Ratio",
-                    min_value=min_or_value,
-                    max_value=max_or_value,
-                    value=st.session_state.min_or,
-                    step=0.5,
-                    key="custom_min_or",
-                    help="Filter trajectories by minimum odds ratio"
+                    min_or_value, max_or_value,
+                    st.session_state.min_or,
+                    0.5, "custom_min_or",
+                    "Filter trajectories by minimum odds ratio",
+                    is_float=True, show_tip=True
                 )
 
-                min_freq = st.slider(
+                min_freq = create_slider_with_input(
                     "Minimum Frequency",
-                    min_value=min_freq_value,
-                    max_value=max_freq_value,
-                    value=min_freq_value,
-                    step=1,
-                    help="Minimum number of occurrences required"
+                    min_freq_value, max_freq_value,
+                    min_freq_value,
+                    1, "custom_min_freq",
+                    "Minimum number of occurrences required",
+                    is_float=False
                 )
 
                 # Filter data based on both OR and frequency
@@ -475,32 +521,37 @@ def render_trajectory_filter_tab(data):
                 if selected_conditions:
                     max_years = math.ceil(filtered_data['MedianDurationYearsWithIQR']
                                     .apply(lambda x: parse_iqr(x)[0]).max())
-                    time_horizon = st.slider(
+                    time_horizon = create_slider_with_input(
                         "Time Horizon (years)",
-                        min_value=1.0,
-                        max_value=float(max_years),  # Convert to float
-                        value=float(st.session_state.time_horizon),  # Convert to float
-                        step=0.5,  
-                        key="custom_time_horizon",
-                        help="Maximum time period to consider"
+                        1.0, float(max_years),
+                        float(st.session_state.time_horizon),
+                        0.5, "custom_time_horizon",
+                        "Maximum time period to consider",
+                        is_float=True
                     )
 
-
-                    time_margin = st.slider(
+                    time_margin = create_slider_with_input(
                         "Time Margin",
-                        0.0, 0.5, st.session_state.time_margin, 0.05,
-                        key="custom_time_margin",
-                        help="Allowable variation in time predictions"
+                        0.0, 0.5,
+                        st.session_state.time_margin,
+                        0.05, "custom_time_margin",
+                        "Allowable variation in time predictions",
+                        is_float=True
                     )
 
-                    generate_button = st.button(
-                        "🔄 Generate Network",
-                        key="custom_generate",
-                        help="Click to generate trajectory network"
-                    )
+                # Always create the button, but only enable it when conditions are selected
+                generate_button = st.button(
+                    "🔄 Generate Network",
+                    key="custom_generate",
+                    help="Click to generate trajectory network",
+                    disabled=not bool(selected_conditions)
+                )
 
             except Exception as e:
                 st.error(f"Error in custom trajectory analysis: {str(e)}")
+                # Ensure variables are still available even on error
+                selected_conditions = []
+                generate_button = False
             st.markdown('</div>', unsafe_allow_html=True)
 
     with main_col:
@@ -553,26 +604,29 @@ def render_cohort_network_tab(data):
     with control_col:
         with st.container():
             st.markdown("### Control Panel")
+            st.info("💡 **Tip**: After typing values in input fields, press Enter before running analysis")
             
             # Dynamically set slider ranges based on the loaded data
             min_or_range = (data['OddsRatio'].min(), data['OddsRatio'].max())
             min_freq_range = (data['PairFrequency'].min(), data['PairFrequency'].max())
             
             # Sliders for filtering
-            min_or = st.slider(
+            min_or = create_slider_with_input(
                 "Minimum Odds Ratio",
-                float(min_or_range[0]), float(min_or_range[1]), 2.0, 0.1,
-                key="cohort_network_min_or",
-                help="Filter relationships by minimum odds ratio"
+                float(min_or_range[0]), float(min_or_range[1]),
+                2.0,
+                0.1, "cohort_network_min_or",
+                "Filter relationships by minimum odds ratio",
+                is_float=True, show_tip=True
             )
 
-            min_freq = st.slider(
+            min_freq = create_slider_with_input(
                 "Minimum Pair Frequency",
+                int(min_freq_range[0]), int(min_freq_range[1]),
                 int(min_freq_range[0]),
-                int(min_freq_range[1]),
-                int(min_freq_range[0]),
-                key="cohort_network_min_freq",
-                help="Minimum number of occurrences required"
+                1, "cohort_network_min_freq",
+                "Minimum number of occurrences required",
+                is_float=False
             )
 
             generate_button = st.button(

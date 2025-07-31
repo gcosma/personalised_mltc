@@ -11,47 +11,92 @@ import seaborn as sns
 from pyvis.network import Network
 import math
 import random
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from modules.config import SYSTEM_COLORS, condition_categories
 from modules.utils import parse_iqr
 from modules.preprocessing import convert_text_case
 
 def create_sensitivity_plot(results):
-    """Create the sensitivity analysis visualization"""
-    fig, ax1 = plt.subplots(figsize=(12, 6))
-    ax2 = ax1.twinx()
-
+    """Create the sensitivity analysis visualization with hover tooltips"""
+    # Create subplot with secondary y-axis
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    
     x_vals = results['OR_Threshold'].values
     bar_heights = results['Num_Trajectories']
-
-    # Plot bars and lines
-    bars = ax1.bar(x_vals, bar_heights, alpha=0.3, color='navy')
-    line = ax2.plot(x_vals, results['Coverage_Percent'], 'r-o', linewidth=2)
-
-    # Add scatter plot with variable sizes
-    sizes = (results['System_Pairs'] / results['System_Pairs'].max()) * 500
-    scatter = ax2.scatter(x_vals, results['Coverage_Percent'], s=sizes, alpha=0.5, color='darkred')
-
-    # Add text annotations
-    for i, row in results.iterrows():
-        ax1.text(row['OR_Threshold'], bar_heights[i] * 0.5,
-                f"Median: {row['Median_Duration']:.1f}y\nIQR: [{row['Q1_Duration']:.1f}-{row['Q3_Duration']:.1f}]",
-                ha='center', va='center', fontsize=10)
-
-    # Labels and legend
-    ax1.set_xlabel('Minimum Odds Ratio Threshold')
-    ax1.set_ylabel('Number of Disease Trajectories')
-    ax2.set_ylabel('Population Coverage (%)')
-
-    legend_elements = [
-        Patch(facecolor='navy', alpha=0.3, label='Number of Trajectories'),
-        Line2D([0], [0], color='r', marker='o', label='Population Coverage %'),
-        Line2D([0], [0], marker='o', color='darkred', alpha=0.5,
-               label='System Pairs', markersize=10, linestyle='None')
-    ]
-    ax1.legend(handles=legend_elements, loc='upper right')
-
-    plt.title('Impact of Odds Ratio Threshold on Disease Trajectory Analysis')
-    plt.tight_layout()
+    
+    # Add bars with hover info
+    fig.add_trace(
+        go.Bar(
+            x=x_vals,
+            y=bar_heights,
+            name='Number of Trajectories',
+            marker_color='rgba(0,0,128,0.3)',
+            hovertemplate='<b>OR Threshold:</b> %{x}<br>' +
+                         '<b>Trajectories:</b> %{y}<br>' +
+                         '<b>Median Duration:</b> %{customdata[0]:.1f}y<br>' +
+                         '<b>IQR:</b> [%{customdata[1]:.1f}-%{customdata[2]:.1f}]<br>' +
+                         '<extra></extra>',
+            customdata=list(zip(
+                results['Median_Duration'],
+                results['Q1_Duration'], 
+                results['Q3_Duration']
+            ))
+        ),
+        secondary_y=False,
+    )
+    
+    # Add line for coverage percentage
+    fig.add_trace(
+        go.Scatter(
+            x=x_vals,
+            y=results['Coverage_Percent'],
+            mode='lines+markers',
+            name='Population Coverage %',
+            line=dict(color='red', width=2),
+            marker=dict(color='red', size=6),
+            hovertemplate='<b>OR Threshold:</b> %{x}<br>' +
+                         '<b>Coverage:</b> %{y:.1f}%<br>' +
+                         '<extra></extra>'
+        ),
+        secondary_y=True,
+    )
+    
+    # Add scatter for system pairs (sized by system pairs)
+    sizes = (results['System_Pairs'] / results['System_Pairs'].max()) * 30 + 5
+    fig.add_trace(
+        go.Scatter(
+            x=x_vals,
+            y=results['Coverage_Percent'],
+            mode='markers',
+            name='System Pairs',
+            marker=dict(
+                color='darkred',
+                size=sizes,
+                opacity=0.5
+            ),
+            hovertemplate='<b>OR Threshold:</b> %{x}<br>' +
+                         '<b>Coverage:</b> %{y:.1f}%<br>' +
+                         '<b>System Pairs:</b> %{customdata}<br>' +
+                         '<extra></extra>',
+            customdata=results['System_Pairs']
+        ),
+        secondary_y=True,
+    )
+    
+    # Set axis titles
+    fig.update_xaxes(title_text="Minimum Odds Ratio Threshold")
+    fig.update_yaxes(title_text="Number of Disease Trajectories", secondary_y=False)
+    fig.update_yaxes(title_text="Population Coverage (%)", secondary_y=True)
+    
+    # Update layout
+    fig.update_layout(
+        title="Impact of Odds Ratio Threshold on Disease Trajectory Analysis",
+        width=800,
+        height=500,
+        hovermode='x unified'
+    )
+    
     return fig
 
 def create_combinations_plot(results_df):

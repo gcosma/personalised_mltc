@@ -99,13 +99,15 @@ def render_sensitivity_tab(data):
             st.markdown('<div class="control-panel">', unsafe_allow_html=True)
             st.markdown("### Control Panel")
             
-            top_n = create_slider_with_input(
+            top_n = create_constrained_slider_with_input(
                 "Number of Top Trajectories",
                 1, 20, 
                 st.session_state.top_n_trajectories,
                 1, "sensitivity_top_n",
                 "Select how many top trajectories to display",
-                is_float=False, show_tip=True
+                is_float=False, show_tip=True,
+                constraint_max=None,
+                constraint_message=""
             )
             st.session_state.top_n_trajectories = int(top_n)
             
@@ -140,7 +142,7 @@ def render_sensitivity_tab(data):
                     )
 
                     fig = create_sensitivity_plot(results)
-                    st.pyplot(fig)
+                    st.plotly_chart(fig, use_container_width=True)
 
                     csv = display_df.to_csv(index=False)
                     st.download_button(
@@ -168,7 +170,7 @@ def render_sensitivity_tab(data):
                 )
 
                 fig = create_sensitivity_plot(results)
-                st.pyplot(fig)
+                st.plotly_chart(fig, use_container_width=True)
 
                 csv = display_df.to_csv(index=False)
                 st.download_button(
@@ -199,26 +201,30 @@ def render_combinations_tab(data):
                 if st.session_state.min_frequency is None:
                     st.session_state.min_frequency = int(min_freq_range[0])
                 
-                min_frequency = create_slider_with_input(
+                min_frequency = create_constrained_slider_with_input(
                     "Minimum Pair Frequency",
                     int(min_freq_range[0]), int(min_freq_range[1]),
                     st.session_state.min_frequency,
                     1, "combinations_freq",
                     "Minimum number of occurrences required",
-                    is_float=False, show_tip=True
+                    is_float=False, show_tip=True,
+                    constraint_max=None,
+                    constraint_message=""
                 )
                 st.session_state.min_frequency = int(min_frequency)
 
                 min_percentage_range = (data['Percentage'].min(), data['Percentage'].max())
                 init_percentage = float(min_percentage_range[0]) if st.session_state.min_percentage is None else st.session_state.min_percentage
                 
-                min_percentage = create_slider_with_input(
+                min_percentage = create_constrained_slider_with_input(
                     "Minimum Prevalence (%)",
                     float(min_percentage_range[0]), float(min_percentage_range[1]),
                     init_percentage,
                     0.1, "combinations_percentage",
                     "Minimum percentage of population affected",
-                    is_float=True
+                    is_float=True,
+                    constraint_max=None,
+                    constraint_message=""
                 )
                 st.session_state.min_percentage = min_percentage
 
@@ -245,42 +251,47 @@ def render_combinations_tab(data):
                     current_min_percentage = min_percentage
                     
                     # Generate new results - use cross-population analysis for combined datasets
-                    results_df = analyze_condition_combinations(
-                            data,
-                            current_min_percentage,
-                            current_min_frequency
-                        )
+                    try:
+                        results_df = analyze_condition_combinations(
+                                data,
+                                current_min_percentage,
+                                current_min_frequency
+                            )
 
-                    if not results_df.empty:
-                        st.session_state.combinations_results = results_df
-                        
-                        
-                        
-                        st.subheader(f"Analysis Results ({len(results_df)} combinations)")
-                        
-                        # Apply appropriate styling based on dataset type
-                        styled_df = results_df.style.background_gradient(
-                            cmap='YlOrRd',
-                            subset=['Prevalence % (Based on MPF)']
-                        )
-                        
-                        st.dataframe(styled_df)
+                        if results_df.empty:
+                            st.warning(f"No condition combinations found matching the filter criteria (Min Frequency: {current_min_frequency}, Min Prevalence: {current_min_percentage}%). Please try adjusting the filter values.")
+                            return
+                            
+                    except Exception as analysis_error:
+                        st.warning(f"No condition combinations found matching the filter criteria (Min Frequency: {current_min_frequency}, Min Prevalence: {current_min_percentage}%). Please try adjusting the filter values.")
+                        return
 
-                        # Create plot with appropriate column based on dataset type
-                        fig = create_combinations_plot(results_df)
-                        
-                        st.session_state.combinations_fig = fig
-                        st.pyplot(fig)
+                    # Process results
+                    st.session_state.combinations_results = results_df
+                    
+                    st.subheader(f"Analysis Results ({len(results_df)} combinations)")
+                    
+                    # Apply appropriate styling based on dataset type
+                    styled_df = results_df.style.background_gradient(
+                        cmap='YlOrRd',
+                        subset=['Prevalence % (Based on MPF)']
+                    )
+                    
+                    st.dataframe(styled_df)
 
-                        csv = results_df.to_csv(index=False)
-                        st.download_button(
-                            label="📥 Download Results",
-                            data=csv,
-                            file_name="condition_combinations.csv",
-                            mime="text/csv"
-                        )
-                    else:
-                        st.warning("No combinations found matching the criteria. Try adjusting the parameters.")
+                    # Create plot with appropriate column based on dataset type
+                    fig = create_combinations_plot(results_df)
+                    
+                    st.session_state.combinations_fig = fig
+                    st.pyplot(fig)
+
+                    csv = results_df.to_csv(index=False)
+                    st.download_button(
+                        label="📥 Download Results",
+                        data=csv,
+                        file_name="condition_combinations.csv",
+                        mime="text/csv"
+                    )
             
             # Display existing results if available
             elif st.session_state.combinations_results is not None:
@@ -328,79 +339,125 @@ def render_personalised_analysis_tab(data):
             st.markdown('<div class="control-panel">', unsafe_allow_html=True)
             st.markdown("### Control Panel")
             
-            # Get min/max values from data
-            min_or_value = float(data['OddsRatio'].min())
-            max_or_value = float(data['OddsRatio'].max())
-            
-            min_or = create_slider_with_input(
-                "Minimum Odds Ratio",
-                min_or_value, max_or_value,
-                st.session_state.min_or,
-                0.5, "personal_min_or",
-                "Filter trajectories by minimum odds ratio",
-                is_float=True, show_tip=True
-            )
-            st.session_state.min_or = min_or
-
-            # Get max years from data
-            max_years = math.ceil(data['MedianDurationYearsWithIQR'].apply(
+            # Get absolute min/max values from data
+            absolute_min_or = float(data['OddsRatio'].min())
+            absolute_max_or = float(data['OddsRatio'].max())
+            absolute_max_years = math.ceil(data['MedianDurationYearsWithIQR'].apply(
                 lambda x: parse_iqr(x)[0]).max())
             
-            time_horizon = create_slider_with_input(
-                "Time Horizon (years)",
-                1.0, float(max_years),
-                float(st.session_state.time_horizon),
-                0.5, "personal_time_horizon",
-                "Maximum time period to consider",
-                is_float=True
-            )
-            st.session_state.time_horizon = time_horizon
-    
-            time_margin = create_slider_with_input(
-                "Time Margin",
-                0.0, 0.5,
-                st.session_state.time_margin,
-                0.05, "personal_time_margin",
-                "Allowable variation in time predictions",
-                is_float=True
-            )
-            st.session_state.time_margin = time_margin
+            # Get unique conditions
+            unique_conditions = sorted(set(data['ConditionA'].unique()) | set(data['ConditionB'].unique()))
             
-            analyse_button = st.button(
-                "🔍 Analyse Trajectories",
-                key="personal_analyse",
-                help="Generate personalised analysis"
+            # Condition selection callback to reset filters
+            def on_condition_select_personal():
+                st.session_state.selected_conditions = st.session_state.personal_conditions_select
+                newly_selected_conditions = st.session_state.personal_conditions_select
+
+                # Reset filters to their minimums/defaults
+                st.session_state.min_or = absolute_min_or
+                st.session_state.time_horizon = float(absolute_max_years)
+                st.session_state.time_margin = 0.10
+
+                # Reset the underlying slider/input widget states
+                if 'personal_min_or_slider' in st.session_state:
+                    st.session_state.personal_min_or_slider = absolute_min_or
+                    st.session_state.personal_min_or_input = absolute_min_or
+                if 'personal_time_horizon_slider' in st.session_state:
+                    st.session_state.personal_time_horizon_slider = float(absolute_max_years)
+                    st.session_state.personal_time_horizon_input = float(absolute_max_years)
+                if 'personal_time_margin_slider' in st.session_state:
+                    st.session_state.personal_time_margin_slider = 0.10
+                    st.session_state.personal_time_margin_input = 0.10
+
+                # Clear any constraint messages
+                for key in st.session_state:
+                    if key.startswith('personal_') and key.endswith('_constraint_msg'):
+                        st.session_state[key] = ""
+
+            # Condition selection
+            st.multiselect(
+                "Select Current Conditions",
+                options=unique_conditions,
+                default=st.session_state.selected_conditions,
+                key="personal_conditions_select",
+                on_change=on_condition_select_personal,
+                help="Choose all conditions that the patient currently has"
             )
+            
+            selected_conditions = st.session_state.selected_conditions
+            
+            # Show filters only after conditions are selected
+            if selected_conditions:
+                st.markdown("---")  # Visual separator
+                
+                # Get constraints based on selected conditions
+                constraint_max_or, constraint_max_freq, constraint_max_time, condition_details = get_condition_constraints(
+                    data, selected_conditions
+                )
+                
+                # Create constraint messages
+                or_constraint_msg = ""
+                time_constraint_msg = ""
+                if constraint_max_or is not None:
+                    limiting_conditions = [cond for cond, details in condition_details.items() 
+                                         if details['max_or'] == constraint_max_or]
+                    or_constraint_msg = f"Maximum available for selected conditions ({', '.join(limiting_conditions)})"
+                    
+                if constraint_max_time is not None:
+                    limiting_conditions = [cond for cond, details in condition_details.items() 
+                                         if details['max_time'] == constraint_max_time]
+                    time_constraint_msg = f"Maximum available for selected conditions ({', '.join(limiting_conditions)})"
+                
+                # Create constrained sliders
+                min_or = create_constrained_slider_with_input(
+                    "Minimum Odds Ratio",
+                    absolute_min_or, absolute_max_or,
+                    st.session_state.min_or,
+                    0.1, "personal_min_or",
+                    "Filter trajectories by minimum odds ratio",
+                    is_float=True, show_tip=True,
+                    constraint_max=constraint_max_or,
+                    constraint_message=or_constraint_msg
+                )
+                st.session_state.min_or = min_or
+                
+                time_horizon = create_constrained_slider_with_input(
+                    "Time Horizon (years)",
+                    1.0, float(absolute_max_years),
+                    float(st.session_state.time_horizon),
+                    0.5, "personal_time_horizon",
+                    "Maximum time period to consider",
+                    is_float=True,
+                    constraint_max=constraint_max_time,
+                    constraint_message=time_constraint_msg
+                )
+                st.session_state.time_horizon = time_horizon
+        
+                time_margin = create_constrained_slider_with_input(
+                    "Time Margin",
+                    0.0, 0.5,
+                    st.session_state.time_margin,
+                    0.05, "personal_time_margin",
+                    "Allowable variation in time predictions",
+                    is_float=True,
+                    constraint_max=None,
+                    constraint_message=""
+                )
+                st.session_state.time_margin = time_margin
+                
+                analyse_button = st.button(
+                    "🔍 Analyse Trajectories",
+                    key="personal_analyse",
+                    help="Generate personalised analysis"
+                )
+            else:
+                analyse_button = False
+                
             st.markdown('</div>', unsafe_allow_html=True)
 
     with main_col:
-        st.markdown("""
-        <h4 style='font-size: 1.2em; font-weight: 600; color: #333; margin-bottom: 10px;'>
-            🔍 Please select all conditions that the patient currently has:
-        </h4>
-        """, unsafe_allow_html=True)
+        selected_conditions = st.session_state.selected_conditions
         
-        # Initialize session state for selected conditions if not exists
-        if 'selected_conditions' not in st.session_state:
-            st.session_state.selected_conditions = []
-
-        # Get unique conditions only once
-        unique_conditions = sorted(set(data['ConditionA'].unique()) | set(data['ConditionB'].unique()))
-        
-        def on_condition_select():
-            # Update the session state directly from the widget value
-            st.session_state.selected_conditions = st.session_state.personal_select
-
-        # Use the multiselect with a callback
-        selected_conditions = st.multiselect(
-            "Select Current Conditions",
-            options=unique_conditions,
-            default=st.session_state.selected_conditions,
-            key="personal_select",
-            on_change=on_condition_select,
-            help="Choose all conditions that the patient currently has"
-        )
-
         if selected_conditions and analyse_button:
             with st.spinner("🔄 Generating personalised analysis..."):
                 # Generate new analysis
@@ -557,8 +614,11 @@ def create_constrained_slider_with_input(label, absolute_min, absolute_max, curr
             # Snap back to constraint max
             st.session_state[slider_key] = constraint_max
             st.session_state[input_key] = constraint_max
-            rounded_str = str(Decimal(str(constraint_max)).quantize(Decimal('0.01'), rounding=ROUND_CEILING))
-            st.session_state[constraint_key] = f"⚠️ Limited to {rounded_str}{'' if is_float else ''}: {constraint_message}"
+            if is_float:
+                rounded_str = f"{constraint_max:.2f}"
+            else:
+                rounded_str = str(int(constraint_max))
+            st.session_state[constraint_key] = f"⚠️ Limited to {rounded_str}: {constraint_message}"
         else:
             # Normal behavior
             st.session_state[input_key] = max(absolute_min, min(effective_max, attempted_value))
@@ -567,12 +627,41 @@ def create_constrained_slider_with_input(label, absolute_min, absolute_max, curr
     def on_input_change():
         attempted_value = st.session_state[input_key]
         
-        if constraint_max is not None and attempted_value > constraint_max:
+        if attempted_value < absolute_min:
+            # Snap to absolute minimum
+            st.session_state[slider_key] = absolute_min
+            st.session_state[input_key] = absolute_min
+            if is_float:
+                min_str = f"{absolute_min:.2f}"
+            else:
+                min_str = str(int(absolute_min))
+            st.session_state[constraint_key] = f"⚠️ Minimum value is {min_str}"
+        elif attempted_value > absolute_max:
+            # Snap to effective maximum (constraint max if available, otherwise absolute max)
+            effective_snap_max = constraint_max if constraint_max is not None else absolute_max
+            st.session_state[slider_key] = effective_snap_max
+            st.session_state[input_key] = effective_snap_max
+            if constraint_max is not None:
+                if is_float:
+                    rounded_str = f"{constraint_max:.2f}"
+                else:
+                    rounded_str = str(int(constraint_max))
+                st.session_state[constraint_key] = f"⚠️ Limited to {rounded_str}: {constraint_message}"
+            else:
+                if is_float:
+                    max_str = f"{absolute_max:.2f}"
+                else:
+                    max_str = str(int(absolute_max))
+                st.session_state[constraint_key] = f"⚠️ Maximum value is {max_str}"
+        elif constraint_max is not None and attempted_value > constraint_max:
             # Snap back to constraint max
             st.session_state[slider_key] = constraint_max
             st.session_state[input_key] = constraint_max
-            rounded_str = str(Decimal(str(constraint_max)).quantize(Decimal('0.01'), rounding=ROUND_CEILING))
-            st.session_state[constraint_key] = f"⚠️ Limited to {rounded_str}{'' if is_float else ''}: {constraint_message}"
+            if is_float:
+                rounded_str = f"{constraint_max:.2f}"
+            else:
+                rounded_str = str(int(constraint_max))
+            st.session_state[constraint_key] = f"⚠️ Limited to {rounded_str}: {constraint_message}"
         else:
             # Normal behavior
             st.session_state[slider_key] = max(absolute_min, min(effective_max, attempted_value))
@@ -595,8 +684,6 @@ def create_constrained_slider_with_input(label, absolute_min, absolute_max, curr
     with col2:
         input_val = st.number_input(
             "Or type:",
-            min_value=absolute_min,
-            max_value=absolute_max,  # Keep absolute max for input range
             step=step,
             key=input_key,
             on_change=on_input_change,
@@ -710,6 +797,7 @@ def render_trajectory_filter_tab(data):
                     # Create constraint messages
                     or_constraint_msg = ""
                     freq_constraint_msg = ""
+                    time_constraint_msg = ""
                     if constraint_max_or is not None:
                         limiting_conditions = [cond for cond, details in condition_details.items() 
                                              if details['max_or'] == constraint_max_or]
@@ -719,6 +807,11 @@ def render_trajectory_filter_tab(data):
                         limiting_conditions = [cond for cond, details in condition_details.items() 
                                              if details['max_freq'] == constraint_max_freq]
                         freq_constraint_msg = f"Maximum available for selected conditions ({', '.join(limiting_conditions)})"
+                        
+                    if constraint_max_time is not None:
+                        limiting_conditions = [cond for cond, details in condition_details.items() 
+                                             if details['max_time'] == constraint_max_time]
+                        time_constraint_msg = f"Maximum available for selected conditions ({', '.join(limiting_conditions)})"
 
                     # Create constrained sliders
                     min_or = create_constrained_slider_with_input(
@@ -751,16 +844,18 @@ def render_trajectory_filter_tab(data):
                         "Maximum time period to consider",
                         is_float=True,
                         constraint_max=constraint_max_time,
-                        constraint_message="Maximum time for selected conditions" if constraint_max_time else ""
+                        constraint_message=time_constraint_msg
                     )
 
-                    time_margin = create_slider_with_input(
+                    time_margin = create_constrained_slider_with_input(
                         "Time Margin",
                         0.0, 0.5,
                         st.session_state.time_margin,
                         0.05, "custom_time_margin",
                         "Allowable variation in time predictions",
-                        is_float=True
+                        is_float=True,
+                        constraint_max=None,
+                        constraint_message=""
                     )
                     
                     # Update session state
@@ -849,22 +944,26 @@ def render_cohort_network_tab(data):
             min_freq_range = (data['PairFrequency'].min(), data['PairFrequency'].max())
             
             # Sliders for filtering
-            min_or = create_slider_with_input(
+            min_or = create_constrained_slider_with_input(
                 "Minimum Odds Ratio",
                 float(min_or_range[0]), float(min_or_range[1]),
                 2.0,
                 0.1, "cohort_network_min_or",
                 "Filter relationships by minimum odds ratio",
-                is_float=True, show_tip=True
+                is_float=True, show_tip=True,
+                constraint_max=None,
+                constraint_message=""
             )
 
-            min_freq = create_slider_with_input(
+            min_freq = create_constrained_slider_with_input(
                 "Minimum Pair Frequency",
                 int(min_freq_range[0]), int(min_freq_range[1]),
                 int(min_freq_range[0]),
                 1, "cohort_network_min_freq",
                 "Minimum number of occurrences required",
-                is_float=False
+                is_float=False,
+                constraint_max=None,
+                constraint_message=""
             )
 
             generate_button = st.button(

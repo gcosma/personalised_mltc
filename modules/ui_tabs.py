@@ -683,6 +683,9 @@ def create_constrained_slider_with_input(label, absolute_min, absolute_max, curr
             on_change=on_slider_change,
             help=help_text
         )
+        # Show constraint message if present
+        if st.session_state[constraint_key]:
+            st.caption(st.session_state[constraint_key])
     
     with col2:
         input_val = st.number_input(
@@ -694,10 +697,6 @@ def create_constrained_slider_with_input(label, absolute_min, absolute_max, curr
         )
         if show_tip:
             st.caption("💡 Press Enter after typing")
-    
-    # Show constraint message if present
-    if st.session_state[constraint_key]:
-        st.caption(st.session_state[constraint_key])
     
     return input_val
 

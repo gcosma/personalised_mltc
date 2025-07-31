@@ -13,7 +13,6 @@ from modules.visualizations import (
     create_network_graph
 )
 from modules.utils import parse_iqr
-from decimal import Decimal, ROUND_CEILING
 
 def create_slider_with_input(label, min_val, max_val, current_val, step, key_prefix, help_text="", is_float=True, show_tip=False, on_change_callback=None):
     """
@@ -611,13 +610,14 @@ def create_constrained_slider_with_input(label, absolute_min, absolute_max, curr
         attempted_value = st.session_state[slider_key]
         
         if constraint_max is not None and attempted_value > constraint_max:
-            # Snap back to constraint max
-            st.session_state[slider_key] = constraint_max
-            st.session_state[input_key] = constraint_max
+            # Snap back to constraint max (rounded consistently)
+            snapped_value = float(f"{constraint_max:.2f}") if is_float else int(constraint_max)
+            st.session_state[slider_key] = snapped_value
+            st.session_state[input_key] = snapped_value
             if is_float:
-                rounded_str = f"{constraint_max:.2f}"
+                rounded_str = f"{snapped_value:.2f}"
             else:
-                rounded_str = str(int(constraint_max))
+                rounded_str = str(snapped_value)
             st.session_state[constraint_key] = f"⚠️ Limited to {rounded_str}: {constraint_message}"
         else:
             # Normal behavior
@@ -628,39 +628,42 @@ def create_constrained_slider_with_input(label, absolute_min, absolute_max, curr
         attempted_value = st.session_state[input_key]
         
         if attempted_value < absolute_min:
-            # Snap to absolute minimum
-            st.session_state[slider_key] = absolute_min
-            st.session_state[input_key] = absolute_min
+            # Snap to absolute minimum (rounded consistently)
+            snapped_value = float(f"{absolute_min:.2f}") if is_float else int(absolute_min)
+            st.session_state[slider_key] = snapped_value
+            st.session_state[input_key] = snapped_value
             if is_float:
-                min_str = f"{absolute_min:.2f}"
+                min_str = f"{snapped_value:.2f}"
             else:
-                min_str = str(int(absolute_min))
+                min_str = str(snapped_value)
             st.session_state[constraint_key] = f"⚠️ Minimum value is {min_str}"
         elif attempted_value > absolute_max:
             # Snap to effective maximum (constraint max if available, otherwise absolute max)
             effective_snap_max = constraint_max if constraint_max is not None else absolute_max
-            st.session_state[slider_key] = effective_snap_max
-            st.session_state[input_key] = effective_snap_max
+            snapped_value = float(f"{effective_snap_max:.2f}") if is_float else int(effective_snap_max) 
+            st.session_state[slider_key] = snapped_value
+            st.session_state[input_key] = snapped_value
             if constraint_max is not None:
                 if is_float:
-                    rounded_str = f"{constraint_max:.2f}"
+                    rounded_str = f"{snapped_value:.2f}"
                 else:
-                    rounded_str = str(int(constraint_max))
+                    rounded_str = str(snapped_value)
                 st.session_state[constraint_key] = f"⚠️ Limited to {rounded_str}: {constraint_message}"
             else:
                 if is_float:
-                    max_str = f"{absolute_max:.2f}"
+                    max_str = f"{snapped_value:.2f}"
                 else:
-                    max_str = str(int(absolute_max))
+                    max_str = str(snapped_value)
                 st.session_state[constraint_key] = f"⚠️ Maximum value is {max_str}"
         elif constraint_max is not None and attempted_value > constraint_max:
-            # Snap back to constraint max
-            st.session_state[slider_key] = constraint_max
-            st.session_state[input_key] = constraint_max
+            # Snap back to constraint max (rounded consistently)
+            snapped_value = float(f"{constraint_max:.2f}") if is_float else int(constraint_max)
+            st.session_state[slider_key] = snapped_value
+            st.session_state[input_key] = snapped_value
             if is_float:
-                rounded_str = f"{constraint_max:.2f}"
+                rounded_str = f"{snapped_value:.2f}"
             else:
-                rounded_str = str(int(constraint_max))
+                rounded_str = str(snapped_value)
             st.session_state[constraint_key] = f"⚠️ Limited to {rounded_str}: {constraint_message}"
         else:
             # Normal behavior

@@ -111,12 +111,12 @@ def analyze_condition_combinations(data, min_percentage, min_frequency):
                 'Combination': ' + '.join(comb),
                 'NumConditions': len(comb),
                 'Minimum Pair Frequency': frequency,
-                'Prevalence of the combination (%)': prevalence,
+                'Prevalence % (Based on MPF)': prevalence,
                 'Total odds ratio': odds_ratio
             })
 
     results_df = pd.DataFrame(result_data)
-    results_df = (results_df[results_df['Prevalence of the combination (%)'] > 0]
-                 .sort_values('Prevalence of the combination (%)', ascending=False))
+    results_df = (results_df[results_df['Prevalence % (Based on MPF)'] > 0]
+                 .sort_values('Prevalence % (Based on MPF)', ascending=False))
 
     return results_df

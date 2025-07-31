@@ -58,8 +58,8 @@ def create_combinations_plot(results_df):
     """Create the combinations analysis visualization"""
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    top_10 = results_df.nlargest(10, 'Prevalence of the combination (%)')
-    bars = ax.bar(range(len(top_10)), top_10['Prevalence of the combination (%)'])
+    top_10 = results_df.nlargest(10, 'Prevalence % (Based on MPF)')
+    bars = ax.bar(range(len(top_10)), top_10['Prevalence % (Based on MPF)'])
 
     # Customize the plot
     ax.set_xticks(range(len(top_10)))

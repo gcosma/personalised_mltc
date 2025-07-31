@@ -261,7 +261,7 @@ def render_combinations_tab(data):
                         # Apply appropriate styling based on dataset type
                         styled_df = results_df.style.background_gradient(
                             cmap='YlOrRd',
-                            subset=['Prevalence of the combination (%)']
+                            subset=['Prevalence % (Based on MPF)']
                         )
                         
                         st.dataframe(styled_df)
@@ -293,7 +293,7 @@ def render_combinations_tab(data):
                 # Apply appropriate styling based on dataset type
                 styled_df = results_df.style.background_gradient(
                     cmap='YlOrRd',
-                    subset=['Prevalence of the combination (%)']
+                    subset=['Prevalence % (Based on MPF)']
                 )
                 
                 st.dataframe(styled_df)

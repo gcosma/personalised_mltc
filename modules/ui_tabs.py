@@ -483,28 +483,52 @@ def render_personalised_analysis_tab(data):
         
         if selected_conditions and analyse_button:
             with st.spinner("🔄 Generating personalised analysis..."):
-                # Generate new analysis
-                html_content = create_personalized_analysis(
-                    data,
-                    selected_conditions,
-                    time_horizon,
-                    time_margin,
-                    min_or
-                )
-                st.session_state.personalized_html = html_content
+                # Pre-check if any results will be found
+                filtered_data = data[data['OddsRatio'] >= min_or].copy()
+                has_results = False
+                
+                for condition_a in selected_conditions:
+                    time_filtered_data = filtered_data[
+                        (filtered_data['ConditionA'] == condition_a) |
+                        (filtered_data['ConditionB'] == condition_a)
+                    ]
+                    
+                    if time_horizon and time_margin:
+                        time_filtered_data = time_filtered_data[
+                            time_filtered_data['MedianDurationYearsWithIQR'].apply(
+                                lambda x: parse_iqr(x)[0]) <= time_horizon * (1 + time_margin)
+                        ]
+                    
+                    if not time_filtered_data.empty:
+                        has_results = True
+                        break
+                
+                if not has_results:
+                    st.warning("No trajectories found matching the selected conditions and filter criteria. Please try adjusting the filters or selecting different conditions.")
+                    st.session_state.personalized_html = None
+                else:
+                    # Generate new analysis
+                    html_content = create_personalized_analysis(
+                        data,
+                        selected_conditions,
+                        time_horizon,
+                        time_margin,
+                        min_or
+                    )
+                    st.session_state.personalized_html = html_content
 
-                html_container = f"""
-                <div style="min-height: 800px; width: 100%; padding: 20px;">
-                    {html_content}
-                </div>
-                """
-                st.components.v1.html(html_container, height=1200, scrolling=True)
-                st.download_button(
-                    label="📥 Download Analysis",
-                    data=html_content,
-                    file_name="personalised_trajectory_analysis.html",
-                    mime="text/html"
-                )
+                    html_container = f"""
+                    <div style="min-height: 800px; width: 100%; padding: 20px;">
+                        {html_content}
+                    </div>
+                    """
+                    st.components.v1.html(html_container, height=1200, scrolling=True)
+                    st.download_button(
+                        label="📥 Download Analysis",
+                        data=html_content,
+                        file_name="personalised_trajectory_analysis.html",
+                        mime="text/html"
+                    )
 
         # Display existing analysis if available
         elif st.session_state.personalized_html is not None:

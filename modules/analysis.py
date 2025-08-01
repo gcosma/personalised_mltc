@@ -10,7 +10,7 @@ from modules.utils import parse_iqr
 from modules.config import condition_categories
 
 @st.cache_data
-def perform_sensitivity_analysis(data, top_n=5):
+def perform_sensitivity_analysis(data, top_n=10):
     """Perform sensitivity analysis with configurable number of top trajectories"""
     or_thresholds = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     results = []

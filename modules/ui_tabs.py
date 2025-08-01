@@ -445,7 +445,7 @@ def render_personalised_analysis_tab(data):
                 
                 time_horizon = create_constrained_slider_with_input(
                     "Time Horizon (years)",
-                    1.0, float(absolute_max_years),
+                    0.1, float(absolute_max_years),
                     float(st.session_state.time_horizon),
                     0.5, "personal_time_horizon",
                     "Maximum time period to consider",
@@ -898,7 +898,7 @@ def render_trajectory_filter_tab(data):
                     
                     time_horizon = create_constrained_slider_with_input(
                         "Time Horizon (years)",
-                        1.0, float(absolute_max_years),
+                        0.1, float(absolute_max_years),
                         float(st.session_state.time_horizon),
                         0.5, "custom_time_horizon",
                         "Maximum time period to consider",

@@ -635,7 +635,7 @@ def get_condition_constraints(data, selected_conditions):
 
 def create_constrained_slider_with_input(label, absolute_min, absolute_max, current_val, step, key_prefix, 
                                        help_text="", is_float=True, show_tip=False, 
-                                       constraint_max=None, constraint_message="", info_text=""):
+                                       constraint_max=None, constraint_message="", info_text="", force_sync=False):
     """
     Create a slider that snaps back to constraint_max if user tries to exceed it.
     """
@@ -643,11 +643,30 @@ def create_constrained_slider_with_input(label, absolute_min, absolute_max, curr
     input_key = f"{key_prefix}_input"
     constraint_key = f"{key_prefix}_constraint_msg"
     
-    # Initialize session state
-    if slider_key not in st.session_state:
-        st.session_state[slider_key] = max(absolute_min, min(absolute_max, current_val))
-    if input_key not in st.session_state:
-        st.session_state[input_key] = max(absolute_min, min(absolute_max, current_val))
+    # Initialize session state or force sync if requested
+    needs_sync = (slider_key not in st.session_state or 
+                  input_key not in st.session_state or 
+                  force_sync)
+    
+    # Also sync if current values are outside new range bounds OR if the expected current_val
+    # differs significantly from what's stored (indicating dataset change)
+    if not needs_sync and slider_key in st.session_state and input_key in st.session_state:
+        current_slider_val = st.session_state[slider_key]
+        current_input_val = st.session_state[input_key]
+        expected_val = max(absolute_min, min(absolute_max, current_val))
+        
+        # Sync if outside bounds OR if widgets don't match the expected default
+        if (current_slider_val < absolute_min or current_slider_val > absolute_max or
+            current_input_val < absolute_min or current_input_val > absolute_max or
+            abs(current_slider_val - expected_val) > 0.001 or
+            abs(current_input_val - expected_val) > 0.001):
+            needs_sync = True
+    
+    if needs_sync:
+        synced_val = max(absolute_min, min(absolute_max, current_val))
+        st.session_state[slider_key] = synced_val
+        st.session_state[input_key] = synced_val
+    
     if constraint_key not in st.session_state:
         st.session_state[constraint_key] = ""
     

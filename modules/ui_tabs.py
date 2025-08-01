@@ -75,7 +75,6 @@ def create_slider_with_input(label, min_val, max_val, current_val, step, key_pre
             min_value=min_val,
             max_value=max_val,
             step=step,
-            value=None,
             key=input_key,
             on_change=on_input_change,
             help=f"Press Enter to register. {help_text}" if help_text else "Press Enter to register"
@@ -692,7 +691,6 @@ def create_constrained_slider_with_input(label, absolute_min, absolute_max, curr
         input_val = st.number_input(
             "Or type:",
             step=step,
-            value=None,
             key=input_key,
             on_change=on_input_change,
             help=f"Press Enter to register. {help_text}" if help_text else "Press Enter to register"

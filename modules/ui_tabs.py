@@ -354,9 +354,15 @@ def render_personalised_analysis_tab(data):
                 st.session_state.selected_conditions = st.session_state.personal_conditions_select
                 newly_selected_conditions = st.session_state.personal_conditions_select
 
-                # Reset filters to their minimums/defaults
+                # Get constraints for newly selected conditions to set appropriate defaults
+                _, _, constraint_max_time, _ = get_condition_constraints(
+                    data, newly_selected_conditions
+                )
+
+                # Reset filters to their minimums/defaults, using constraint max time as default
                 st.session_state.min_or = absolute_min_or
-                st.session_state.time_horizon = float(absolute_max_years)
+                default_time_horizon = constraint_max_time if constraint_max_time and constraint_max_time > 0 else float(absolute_max_years)
+                st.session_state.time_horizon = default_time_horizon
                 st.session_state.time_margin = 0.10
 
                 # Reset the underlying slider/input widget states
@@ -364,8 +370,8 @@ def render_personalised_analysis_tab(data):
                     st.session_state.personal_min_or_slider = absolute_min_or
                     st.session_state.personal_min_or_input = absolute_min_or
                 if 'personal_time_horizon_slider' in st.session_state:
-                    st.session_state.personal_time_horizon_slider = float(absolute_max_years)
-                    st.session_state.personal_time_horizon_input = float(absolute_max_years)
+                    st.session_state.personal_time_horizon_slider = default_time_horizon
+                    st.session_state.personal_time_horizon_input = default_time_horizon
                 if 'personal_time_margin_slider' in st.session_state:
                     st.session_state.personal_time_margin_slider = 0.10
                     st.session_state.personal_time_margin_input = 0.10
@@ -409,6 +415,13 @@ def render_personalised_analysis_tab(data):
                                          if details['max_time'] == constraint_max_time]
                     time_constraint_msg = f"Maximum available for selected conditions ({', '.join(limiting_conditions)})"
                 
+                # Create info text for minimum odds ratio
+                or_info_text = ""
+                if constraint_max_or is not None and constraint_max_or == st.session_state.min_or:
+                    limiting_conditions = [cond for cond, details in condition_details.items() 
+                                         if details['max_or'] == constraint_max_or]
+                    or_info_text = f"Selected maximum available for selected conditions ({', '.join(limiting_conditions)})"
+                
                 # Create constrained sliders
                 min_or = create_constrained_slider_with_input(
                     "Minimum Odds Ratio",
@@ -418,9 +431,17 @@ def render_personalised_analysis_tab(data):
                     "Filter trajectories by minimum odds ratio",
                     is_float=True, show_tip=True,
                     constraint_max=constraint_max_or,
-                    constraint_message=or_constraint_msg
+                    constraint_message=or_constraint_msg,
+                    info_text=or_info_text
                 )
                 st.session_state.min_or = min_or
+                
+                # Create info text for time horizon
+                time_info_text = ""
+                if constraint_max_time is not None and constraint_max_time == st.session_state.time_horizon:
+                    limiting_conditions = [cond for cond, details in condition_details.items() 
+                                         if details['max_time'] == constraint_max_time]
+                    time_info_text = f"Selected maximum available for selected conditions ({', '.join(limiting_conditions)})"
                 
                 time_horizon = create_constrained_slider_with_input(
                     "Time Horizon (years)",
@@ -430,7 +451,8 @@ def render_personalised_analysis_tab(data):
                     "Maximum time period to consider",
                     is_float=True,
                     constraint_max=constraint_max_time,
-                    constraint_message=time_constraint_msg
+                    constraint_message=time_constraint_msg,
+                    info_text=time_info_text
                 )
                 st.session_state.time_horizon = time_horizon
         
@@ -589,7 +611,7 @@ def get_condition_constraints(data, selected_conditions):
 
 def create_constrained_slider_with_input(label, absolute_min, absolute_max, current_val, step, key_prefix, 
                                        help_text="", is_float=True, show_tip=False, 
-                                       constraint_max=None, constraint_message=""):
+                                       constraint_max=None, constraint_message="", info_text=""):
     """
     Create a slider that snaps back to constraint_max if user tries to exceed it.
     """
@@ -620,7 +642,7 @@ def create_constrained_slider_with_input(label, absolute_min, absolute_max, curr
                 rounded_str = f"{snapped_value:.2f}"
             else:
                 rounded_str = str(snapped_value)
-            st.session_state[constraint_key] = f"⚠️ Limited to {rounded_str}: {constraint_message}"
+            st.session_state[constraint_key] = f"ℹ️ Limited to {rounded_str}: {constraint_message}"
         else:
             # Normal behavior
             st.session_state[input_key] = max(absolute_min, min(effective_max, attempted_value))
@@ -638,7 +660,7 @@ def create_constrained_slider_with_input(label, absolute_min, absolute_max, curr
                 min_str = f"{snapped_value:.2f}"
             else:
                 min_str = str(snapped_value)
-            st.session_state[constraint_key] = f"⚠️ Minimum value is {min_str}"
+            st.session_state[constraint_key] = f"ℹ️ Minimum value is {min_str}"
         elif attempted_value > absolute_max:
             # Snap to effective maximum (constraint max if available, otherwise absolute max)
             effective_snap_max = constraint_max if constraint_max is not None else absolute_max
@@ -650,13 +672,13 @@ def create_constrained_slider_with_input(label, absolute_min, absolute_max, curr
                     rounded_str = f"{snapped_value:.2f}"
                 else:
                     rounded_str = str(snapped_value)
-                st.session_state[constraint_key] = f"⚠️ Limited to {rounded_str}: {constraint_message}"
+                st.session_state[constraint_key] = f"ℹ️ Limited to {rounded_str}: {constraint_message}"
             else:
                 if is_float:
                     max_str = f"{snapped_value:.2f}"
                 else:
                     max_str = str(snapped_value)
-                st.session_state[constraint_key] = f"⚠️ Maximum value is {max_str}"
+                st.session_state[constraint_key] = f"ℹ️ Maximum value is {max_str}"
         elif constraint_max is not None and attempted_value > constraint_max:
             # Snap back to constraint max (rounded consistently)
             snapped_value = float(f"{constraint_max:.2f}") if is_float else int(constraint_max)
@@ -666,7 +688,7 @@ def create_constrained_slider_with_input(label, absolute_min, absolute_max, curr
                 rounded_str = f"{snapped_value:.2f}"
             else:
                 rounded_str = str(snapped_value)
-            st.session_state[constraint_key] = f"⚠️ Limited to {rounded_str}: {constraint_message}"
+            st.session_state[constraint_key] = f"ℹ️ Limited to {rounded_str}: {constraint_message}"
         else:
             # Normal behavior
             st.session_state[slider_key] = max(absolute_min, min(effective_max, attempted_value))
@@ -688,6 +710,9 @@ def create_constrained_slider_with_input(label, absolute_min, absolute_max, curr
         # Show constraint message if present
         if st.session_state[constraint_key]:
             st.caption(st.session_state[constraint_key])
+        # Show informational text if provided
+        elif info_text:
+            st.caption(f"ℹ️ {info_text}")
     
     with col2:
         input_val = st.number_input(
@@ -840,6 +865,13 @@ def render_trajectory_filter_tab(data):
                         constraint_message=freq_constraint_msg
                     )
                     
+                    # Create info text for time horizon
+                    custom_time_info_text = ""
+                    if constraint_max_time is not None and constraint_max_time == st.session_state.time_horizon:
+                        limiting_conditions = [cond for cond, details in condition_details.items() 
+                                             if details['max_time'] == constraint_max_time]
+                        custom_time_info_text = f"Selected maximum available for selected conditions ({', '.join(limiting_conditions)})"
+                    
                     time_horizon = create_constrained_slider_with_input(
                         "Time Horizon (years)",
                         1.0, float(absolute_max_years),
@@ -848,7 +880,8 @@ def render_trajectory_filter_tab(data):
                         "Maximum time period to consider",
                         is_float=True,
                         constraint_max=constraint_max_time,
-                        constraint_message=time_constraint_msg
+                        constraint_message=time_constraint_msg,
+                        info_text=custom_time_info_text
                     )
 
                     time_margin = create_constrained_slider_with_input(

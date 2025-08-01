@@ -193,6 +193,9 @@ def render_combinations_tab(data):
             st.markdown('<div class="control-panel">', unsafe_allow_html=True)
             st.markdown("### Control Panel")
             
+            # Initialize button variable to prevent scope issues
+            analyse_combinations_button = False
+            
             try:
                 min_freq_range = (data['PairFrequency'].min(), data['PairFrequency'].max())
                 
@@ -212,12 +215,13 @@ def render_combinations_tab(data):
                 )
                 st.session_state.min_frequency = int(min_frequency)
 
-                min_percentage_range = (data['Percentage'].min(), data['Percentage'].max())
-                init_percentage = float(min_percentage_range[0]) if st.session_state.min_percentage is None else st.session_state.min_percentage
+                # Round the percentage range to avoid floating point precision issues
+                min_percentage_range = (round(data['Percentage'].min(), 2), round(data['Percentage'].max(), 2))
+                init_percentage = min_percentage_range[0] if st.session_state.min_percentage is None else st.session_state.min_percentage
                 
                 min_percentage = create_constrained_slider_with_input(
                     "Minimum Prevalence (%)",
-                    float(min_percentage_range[0]), float(min_percentage_range[1]),
+                    min_percentage_range[0], min_percentage_range[1],
                     init_percentage,
                     0.1, "combinations_percentage",
                     "Minimum percentage of population affected",
@@ -226,8 +230,6 @@ def render_combinations_tab(data):
                     constraint_message=""
                 )
                 st.session_state.min_percentage = min_percentage
-
-                
 
                 analyse_combinations_button = st.button(
                     "🔍 Analyse Combinations",
@@ -338,9 +340,9 @@ def render_personalised_analysis_tab(data):
             st.markdown('<div class="control-panel">', unsafe_allow_html=True)
             st.markdown("### Control Panel")
             
-            # Get absolute min/max values from data
-            absolute_min_or = float(data['OddsRatio'].min())
-            absolute_max_or = float(data['OddsRatio'].max())
+            # Get absolute min/max values from data (rounded to avoid precision issues)
+            absolute_min_or = round(data['OddsRatio'].min(), 2)
+            absolute_max_or = round(data['OddsRatio'].max(), 2)
             absolute_max_years = math.ceil(data['MedianDurationYearsWithIQR'].apply(
                 lambda x: parse_iqr(x)[0]).max())
             
@@ -727,9 +729,9 @@ def render_trajectory_filter_tab(data):
             generate_button = False
             
             try:
-                # Get absolute min/max values from data for resetting and slider ranges
-                absolute_min_or = float(data['OddsRatio'].min())
-                absolute_max_or = float(data['OddsRatio'].max())
+                # Get absolute min/max values from data for resetting and slider ranges (rounded to avoid precision issues)
+                absolute_min_or = round(data['OddsRatio'].min(), 2)
+                absolute_max_or = round(data['OddsRatio'].max(), 2)
                 absolute_min_freq = int(data['PairFrequency'].min())
                 absolute_max_freq = int(data['PairFrequency'].max())
                 absolute_max_years = math.ceil(data['MedianDurationYearsWithIQR']
@@ -931,7 +933,7 @@ def render_trajectory_filter_tab(data):
 def render_cohort_network_tab(data):
     st.header("Cohort Network Analysis")
     st.markdown("""
-    Visualize relationships between conditions as a network graph. 
+    Visualise relationships between conditions as a network graph. 
     Node colors represent body systems, and edge thickness indicates association strength.
     """)
 
@@ -941,8 +943,8 @@ def render_cohort_network_tab(data):
         with st.container():
             st.markdown("### Control Panel")
             
-            # Dynamically set slider ranges based on the loaded data
-            min_or_range = (data['OddsRatio'].min(), data['OddsRatio'].max())
+            # Dynamically set slider ranges based on the loaded data (rounded to avoid precision issues)
+            min_or_range = (round(data['OddsRatio'].min(), 2), round(data['OddsRatio'].max(), 2))
             min_freq_range = (data['PairFrequency'].min(), data['PairFrequency'].max())
             
             # Sliders for filtering
@@ -976,7 +978,7 @@ def render_cohort_network_tab(data):
 
     with main_col:
         if generate_button:
-            with st.spinner("🌐 Generating network visualization..."):
+            with st.spinner("🌐 Generating network visualisation..."):
                 try:
                     # Calculate summary statistics
                     filtered_data = data[
@@ -989,7 +991,7 @@ def render_cohort_network_tab(data):
                         st.warning("No data matches the current filter criteria. Please adjust the sliders.")
                         return
                     
-                    # Create visualization
+                    # Create visualisation
                     html_content = create_network_visualization(filtered_data, min_or, min_freq)
                     
                     # Display network
@@ -997,11 +999,11 @@ def render_cohort_network_tab(data):
                     
                     # Add download button
                     st.download_button(
-                        label="📥 Download Network Visualization",
+                        label="📥 Download Network Visualisation",
                         data=html_content,
                         file_name="condition_network.html",
                         mime="text/html"
                     )
                     
                 except Exception as e:
-                    st.error(f"Error generating network visualization: {str(e)}")
+                    st.error(f"Error generating network visualisation: {str(e)}")

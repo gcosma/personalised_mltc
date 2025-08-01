@@ -113,11 +113,17 @@ def create_combinations_plot(results_df):
     ax.set_xlabel('Condition Combinations')
     ax.set_ylabel('Prevalence (%)')
 
+    # Calculate y-axis limit to ensure text labels fit
+    max_height = top_10['Prevalence % (Based on MPF)'].max()
+    ax.set_ylim(0, max_height * 1.15)  # Add 15% extra space at the top
+
     # Add value labels on top of bars
     for i, bar in enumerate(bars):
         height = bar.get_height()
+        # Floor to 2 decimal places: multiply by 100, floor, then divide by 100
+        floored_height = math.floor(height * 100) / 100
         ax.text(bar.get_x() + bar.get_width()/2., height,
-                f'{height:.1f}%',
+                f'{floored_height:.2f}%',
                 ha='center', va='bottom')
 
     plt.tight_layout()

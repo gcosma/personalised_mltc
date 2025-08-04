@@ -53,6 +53,15 @@ def clear_session_state():
     st.session_state.min_frequency = None
     st.session_state.min_percentage = None
     st.session_state.unique_conditions = []
+    
+    # Clear all slider/textbox widget states to ensure proper reset on dataset change
+    widget_keys_to_clear = []
+    for key in list(st.session_state.keys()):
+        if any(key.endswith(suffix) for suffix in ['_slider', '_input', '_constraint_msg']):
+            widget_keys_to_clear.append(key)
+    
+    for key in widget_keys_to_clear:
+        del st.session_state[key]
 
 def main():
     # Initialize session state for data persistence

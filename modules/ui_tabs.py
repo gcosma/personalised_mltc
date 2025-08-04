@@ -648,18 +648,14 @@ def create_constrained_slider_with_input(label, absolute_min, absolute_max, curr
                   input_key not in st.session_state or 
                   force_sync)
     
-    # Also sync if current values are outside new range bounds OR if the expected current_val
-    # differs significantly from what's stored (indicating dataset change)
+    # Also sync if current values are outside new range bounds (indicating dataset change)
     if not needs_sync and slider_key in st.session_state and input_key in st.session_state:
         current_slider_val = st.session_state[slider_key]
         current_input_val = st.session_state[input_key]
-        expected_val = max(absolute_min, min(absolute_max, current_val))
         
-        # Sync if outside bounds OR if widgets don't match the expected default
+        # Only sync if values are outside the valid range bounds, not if they differ from defaults
         if (current_slider_val < absolute_min or current_slider_val > absolute_max or
-            current_input_val < absolute_min or current_input_val > absolute_max or
-            abs(current_slider_val - expected_val) > 0.001 or
-            abs(current_input_val - expected_val) > 0.001):
+            current_input_val < absolute_min or current_input_val > absolute_max):
             needs_sync = True
     
     if needs_sync:

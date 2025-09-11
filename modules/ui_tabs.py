@@ -154,7 +154,7 @@ def render_sensitivity_tab(data, selected_file):
                     filename = generate_export_filename('sensitivity_analysis', selected_file, analysis_params)
                     
                     st.download_button(
-                        label="📥 Download Results",
+                        label="📥 Export",
                         data=csv,
                         file_name=filename,
                         mime="text/csv"
@@ -191,7 +191,7 @@ def render_sensitivity_tab(data, selected_file):
                 filename = generate_export_filename('sensitivity_analysis', selected_file, analysis_params)
                 
                 st.download_button(
-                    label="📥 Download Results",
+                    label="📥 Export",
                     data=csv,
                     file_name=filename,
                     mime="text/csv"
@@ -315,7 +315,7 @@ def render_combinations_tab(data, selected_file):
                     filename = generate_export_filename('condition_combinations', selected_file, analysis_params)
                     
                     st.download_button(
-                        label="📥 Download Results",
+                        label="📥 Export",
                         data=csv,
                         file_name=filename,
                         mime="text/csv"
@@ -351,7 +351,7 @@ def render_combinations_tab(data, selected_file):
                 filename = generate_export_filename('condition_combinations', selected_file, analysis_params)
                 
                 st.download_button(
-                    label="📥 Download Results",
+                    label="📥 Export",
                     data=csv,
                     file_name=filename,
                     mime="text/csv"
@@ -1090,39 +1090,7 @@ def render_trajectory_filter_tab(data, selected_file):
                     st.session_state.network_html = html_content
                     st.components.v1.html(html_content, height=800)
 
-                    # Generate informative filename
-                    analysis_params = {
-                        'selected_conditions': selected_conditions,
-                        'min_or': min_or_val,
-                        'min_freq': min_freq_val,
-                        'time_horizon': time_horizon_val,
-                        'file_extension': 'html'
-                    }
-                    filename = generate_export_filename('trajectory_network', selected_file, analysis_params)
-
-                    # Generate PDF-optimized version for network graph
-                    network_analysis_params = {
-                        'selected_conditions': selected_conditions,
-                        'min_or': min_or_val,
-                        'min_freq': min_freq_val,
-                        'time_horizon': time_horizon_val,
-                        'file_extension': 'html'
-                    }
-                    pdf_html = generate_pdf_html(
-                        html_content, 
-                        'network_graph', 
-                        dataset_info, 
-                        network_analysis_params
-                    )
-                    pdf_filename = filename.replace('.html', '_Export.html')
-                    
-                    st.download_button(
-                        label="📤 Export",
-                        data=pdf_html,
-                        file_name=pdf_filename,
-                        mime="text/html",
-                        help="Download analysis results. Open file and print to save as PDF"
-                    )
+                    # Network-embedded export buttons are included inside the generated HTML
                 except Exception as viz_error:
                     st.error(f"Failed to generate network visualisation: {str(viz_error)}")
                     st.session_state.network_html = None
@@ -1130,59 +1098,7 @@ def render_trajectory_filter_tab(data, selected_file):
         # Display existing network if available
         elif st.session_state.network_html is not None:
             st.components.v1.html(st.session_state.network_html, height=800)
-            
-            # Generate informative filename (using session state values for existing results)
-            analysis_params = {
-                'selected_conditions': st.session_state.selected_conditions,
-                'min_or': st.session_state.min_or,
-                'min_freq': getattr(st.session_state, 'min_freq', None),
-                'time_horizon': st.session_state.time_horizon,
-                'file_extension': 'html'
-            }
-            filename = generate_export_filename('trajectory_network', selected_file, analysis_params)
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.download_button(
-                    label="📥 Download Network",
-                    data=st.session_state.network_html,
-                    file_name=filename,
-                    mime="text/html"
-                )
-            
-            with col2:
-                # Extract dataset info for existing network
-                database, gender, age_group = extract_dataset_info(selected_file)
-                existing_dataset_info = {
-                    'database': database,
-                    'gender': gender,
-                    'age_group': age_group
-                }
-                
-                # Generate PDF-optimized version for existing network
-                existing_network_params = {
-                    'selected_conditions': st.session_state.selected_conditions,
-                    'min_or': st.session_state.min_or,
-                    'min_freq': getattr(st.session_state, 'min_freq', None),
-                    'time_horizon': st.session_state.time_horizon,
-                    'file_extension': 'html'
-                }
-                pdf_html = generate_pdf_html(
-                    st.session_state.network_html, 
-                    'network_graph', 
-                    existing_dataset_info, 
-                    existing_network_params
-                )
-                pdf_filename = filename.replace('.html', '_Export.html')
-                
-                st.download_button(
-                    label="📤 Export",
-                    data=pdf_html,
-                    file_name=pdf_filename,
-                    mime="text/html",
-                    help="Download analysis results. Open file and print to save as PDF"
-                )
+            # Network-embedded export buttons are included inside the generated HTML
 
 def render_cohort_network_tab(data, selected_file):
     st.header("Cohort Network Analysis")
@@ -1259,35 +1175,7 @@ def render_cohort_network_tab(data, selected_file):
                     # Display network
                     st.components.v1.html(html_content, height=800)
                     
-                    # Generate informative filename
-                    analysis_params = {
-                        'min_or': min_or,
-                        'min_freq': min_freq,
-                        'file_extension': 'html'
-                    }
-                    filename = generate_export_filename('cohort_network', selected_file, analysis_params)
-                    
-                    # Generate PDF-optimized version for cohort network
-                    cohort_analysis_params = {
-                        'min_or': min_or,
-                        'min_freq': min_freq,
-                        'file_extension': 'html'
-                    }
-                    pdf_html = generate_pdf_html(
-                        html_content, 
-                        'network_viz', 
-                        dataset_info, 
-                        cohort_analysis_params
-                    )
-                    pdf_filename = filename.replace('.html', '_Export.html')
-                    
-                    st.download_button(
-                        label="📤 Export",
-                        data=pdf_html,
-                        file_name=pdf_filename,
-                        mime="text/html",
-                        help="Download analysis results. Open file and print to save as PDF"
-                    )
+                    # Network-embedded export buttons are included inside the generated HTML
                     
                 except Exception as e:
                     st.error(f"Error generating network visualisation: {str(e)}")

@@ -268,7 +268,7 @@ def create_personalised_analysis(data, patient_conditions, time_horizon=None, ti
     </style>
     <div class="patient-analysis">
         <div class="analysis-container">
-            <h2>Personalised Disease Trajectory Analysis</h2>"""
+            <h2>Cohort-based Personalised Analysis</h2>"""
     
     # Add dataset information section if provided
     if dataset_info:
@@ -590,7 +590,57 @@ def create_network_visualization(data, min_or, min_freq, dataset_info=None):
 
     # Generate final HTML with legends
     html = net.generate_html()
-    final_html = html.replace('</body>', f'{legend_html}{count_legend}</body>')
+
+    # Add export/download controls similar to the custom trajectory network
+    export_script = """
+    <script type="text/javascript">
+    function exportHighResCohort() {
+        const network = document.getElementsByTagName('canvas')[0];
+        const scale = 3;
+        if (!network) { return; }
+        const exportCanvas = document.createElement('canvas');
+        exportCanvas.width = network.width * scale;
+        exportCanvas.height = network.height * scale;
+        const ctx = exportCanvas.getContext('2d');
+        ctx.scale(scale, scale);
+        ctx.drawImage(network, 0, 0);
+        const link = document.createElement('a');
+        link.download = 'cohort_network.png';
+        link.href = exportCanvas.toDataURL('image/png');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    function downloadCohortNetwork() {
+        const htmlContent = document.documentElement.outerHTML;
+        const blob = new Blob([htmlContent], { type: 'text/html' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'cohort_network.html';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+    }
+    </script>
+    """
+
+    buttons_html = """
+    <div style="position: fixed; bottom: 20px; right: 20px; z-index: 1000; display: flex; gap: 10px;">
+        <button onclick="exportHighResCohort()" 
+                style="padding: 10px 20px; font-size: 16px; background-color: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">
+            📸 Download High-Res Image
+        </button>
+        <button onclick="downloadCohortNetwork()" 
+                style="padding: 10px 20px; font-size: 16px; background-color: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">
+            📥 Download Network
+        </button>
+    </div>
+    """
+
+    final_html = html.replace('</head>', export_script + '</head>').replace('</body>', f'{legend_html}{count_legend}{buttons_html}</body>')
     
     return final_html
 

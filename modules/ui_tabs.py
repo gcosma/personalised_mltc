@@ -12,7 +12,8 @@ from modules.visualizations import (
     create_network_visualization, 
     create_network_graph
 )
-from modules.utils import parse_iqr, generate_export_filename
+from modules.utils import parse_iqr, generate_export_filename, extract_dataset_info
+from modules.pdf_export import generate_pdf_html
 
 def create_slider_with_input(label, min_val, max_val, current_val, step, key_prefix, help_text="", is_float=True, show_tip=False, on_change_callback=None):
     """
@@ -542,13 +543,22 @@ def render_personalised_analysis_tab(data, selected_file):
                     st.warning("No trajectories found matching the selected conditions and filter criteria. Please try adjusting the filters or selecting different conditions.")
                     st.session_state.personalised_html = None
                 else:
+                    # Prepare dataset information
+                    database, gender, age_group = extract_dataset_info(selected_file)
+                    dataset_info = {
+                        'database': database,
+                        'gender': gender,
+                        'age_group': age_group
+                    }
+                    
                     # Generate new analysis
                     html_content = create_personalised_analysis(
                         data,
                         selected_conditions,
                         time_horizon,
                         time_margin,
-                        min_or
+                        min_or,
+                        dataset_info
                     )
                     st.session_state.personalised_html = html_content
 
@@ -568,11 +578,27 @@ def render_personalised_analysis_tab(data, selected_file):
                     }
                     filename = generate_export_filename('personalised_analysis', selected_file, analysis_params)
                     
+                    # Generate PDF-optimized HTML
+                    analysis_params = {
+                        'selected_conditions': selected_conditions,
+                        'min_or': min_or,
+                        'time_horizon': time_horizon,
+                        'file_extension': 'html'
+                    }
+                    pdf_html = generate_pdf_html(
+                        html_content, 
+                        'personalised_analysis', 
+                        dataset_info, 
+                        analysis_params
+                    )
+                    pdf_filename = filename.replace('.html', '_Export.html')
+                    
                     st.download_button(
-                        label="📥 Download Analysis",
-                        data=html_content,
-                        file_name=filename,
-                        mime="text/html"
+                        label="📤 Export",
+                        data=pdf_html,
+                        file_name=pdf_filename,
+                        mime="text/html",
+                        help="Download analysis results. Open file and print to save as PDF"
                     )
 
         # Display existing analysis if available
@@ -593,11 +619,29 @@ def render_personalised_analysis_tab(data, selected_file):
             }
             filename = generate_export_filename('personalised_analysis', selected_file, analysis_params)
             
+            # Extract dataset info for existing analysis
+            database, gender, age_group = extract_dataset_info(selected_file)
+            existing_dataset_info = {
+                'database': database,
+                'gender': gender,
+                'age_group': age_group
+            }
+            
+            # Generate PDF-optimized HTML for existing analysis
+            pdf_html = generate_pdf_html(
+                st.session_state.personalised_html, 
+                'personalised_analysis', 
+                existing_dataset_info, 
+                analysis_params
+            )
+            pdf_filename = filename.replace('.html', '_Export.html')
+            
             st.download_button(
-                label="📥 Download Analysis",
-                data=st.session_state.personalised_html,
-                file_name=filename,
-                mime="text/html"
+                label="📤 Export",
+                data=pdf_html,
+                file_name=pdf_filename,
+                mime="text/html",
+                help="Download analysis results. Open file and print to save as PDF"
             )
 
 def calculate_min_required_filters(data, selected_conditions):
@@ -1026,13 +1070,22 @@ def render_trajectory_filter_tab(data, selected_file):
                     # Clear previous network
                     st.session_state.network_html = None
                     
+                    # Prepare dataset information
+                    database, gender, age_group = extract_dataset_info(selected_file)
+                    dataset_info = {
+                        'database': database,
+                        'gender': gender,
+                        'age_group': age_group
+                    }
+                    
                     # Generate new network with current values
                     html_content = create_network_graph(
                         filtered_data,
                         selected_conditions,
                         min_or_val,
                         time_horizon_val,
-                        time_margin_val
+                        time_margin_val,
+                        dataset_info
                     )
                     st.session_state.network_html = html_content
                     st.components.v1.html(html_content, height=800)
@@ -1047,11 +1100,28 @@ def render_trajectory_filter_tab(data, selected_file):
                     }
                     filename = generate_export_filename('trajectory_network', selected_file, analysis_params)
 
+                    # Generate PDF-optimized version for network graph
+                    network_analysis_params = {
+                        'selected_conditions': selected_conditions,
+                        'min_or': min_or_val,
+                        'min_freq': min_freq_val,
+                        'time_horizon': time_horizon_val,
+                        'file_extension': 'html'
+                    }
+                    pdf_html = generate_pdf_html(
+                        html_content, 
+                        'network_graph', 
+                        dataset_info, 
+                        network_analysis_params
+                    )
+                    pdf_filename = filename.replace('.html', '_Export.html')
+                    
                     st.download_button(
-                        label="📥 Download Network",
-                        data=html_content,
-                        file_name=filename,
-                        mime="text/html"
+                        label="📤 Export",
+                        data=pdf_html,
+                        file_name=pdf_filename,
+                        mime="text/html",
+                        help="Download analysis results. Open file and print to save as PDF"
                     )
                 except Exception as viz_error:
                     st.error(f"Failed to generate network visualisation: {str(viz_error)}")
@@ -1071,12 +1141,48 @@ def render_trajectory_filter_tab(data, selected_file):
             }
             filename = generate_export_filename('trajectory_network', selected_file, analysis_params)
             
-            st.download_button(
-                label="📥 Download Network",
-                data=st.session_state.network_html,
-                file_name=filename,
-                mime="text/html"
-            )
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.download_button(
+                    label="📥 Download Network",
+                    data=st.session_state.network_html,
+                    file_name=filename,
+                    mime="text/html"
+                )
+            
+            with col2:
+                # Extract dataset info for existing network
+                database, gender, age_group = extract_dataset_info(selected_file)
+                existing_dataset_info = {
+                    'database': database,
+                    'gender': gender,
+                    'age_group': age_group
+                }
+                
+                # Generate PDF-optimized version for existing network
+                existing_network_params = {
+                    'selected_conditions': st.session_state.selected_conditions,
+                    'min_or': st.session_state.min_or,
+                    'min_freq': getattr(st.session_state, 'min_freq', None),
+                    'time_horizon': st.session_state.time_horizon,
+                    'file_extension': 'html'
+                }
+                pdf_html = generate_pdf_html(
+                    st.session_state.network_html, 
+                    'network_graph', 
+                    existing_dataset_info, 
+                    existing_network_params
+                )
+                pdf_filename = filename.replace('.html', '_Export.html')
+                
+                st.download_button(
+                    label="📤 Export",
+                    data=pdf_html,
+                    file_name=pdf_filename,
+                    mime="text/html",
+                    help="Download analysis results. Open file and print to save as PDF"
+                )
 
 def render_cohort_network_tab(data, selected_file):
     st.header("Cohort Network Analysis")
@@ -1139,8 +1245,16 @@ def render_cohort_network_tab(data, selected_file):
                         st.warning("No data matches the current filter criteria. Please adjust the sliders.")
                         return
                     
+                    # Prepare dataset information
+                    database, gender, age_group = extract_dataset_info(selected_file)
+                    dataset_info = {
+                        'database': database,
+                        'gender': gender,
+                        'age_group': age_group
+                    }
+                    
                     # Create visualisation
-                    html_content = create_network_visualization(filtered_data, min_or, min_freq)
+                    html_content = create_network_visualization(filtered_data, min_or, min_freq, dataset_info)
                     
                     # Display network
                     st.components.v1.html(html_content, height=800)
@@ -1153,12 +1267,26 @@ def render_cohort_network_tab(data, selected_file):
                     }
                     filename = generate_export_filename('cohort_network', selected_file, analysis_params)
                     
-                    # Add download button
+                    # Generate PDF-optimized version for cohort network
+                    cohort_analysis_params = {
+                        'min_or': min_or,
+                        'min_freq': min_freq,
+                        'file_extension': 'html'
+                    }
+                    pdf_html = generate_pdf_html(
+                        html_content, 
+                        'network_viz', 
+                        dataset_info, 
+                        cohort_analysis_params
+                    )
+                    pdf_filename = filename.replace('.html', '_Export.html')
+                    
                     st.download_button(
-                        label="📥 Download Network Visualisation",
-                        data=html_content,
-                        file_name=filename,
-                        mime="text/html"
+                        label="📤 Export",
+                        data=pdf_html,
+                        file_name=pdf_filename,
+                        mime="text/html",
+                        help="Download analysis results. Open file and print to save as PDF"
                     )
                     
                 except Exception as e:

@@ -129,7 +129,7 @@ def create_combinations_plot(results_df):
     plt.tight_layout()
     return fig
 
-def create_personalised_analysis(data, patient_conditions, time_horizon=None, time_margin=None, min_or=2.0):
+def create_personalised_analysis(data, patient_conditions, time_horizon=None, time_margin=None, min_or=2.0, dataset_info=None):
     """Create a personalised analysis of disease trajectories for a patient's conditions"""
     filtered_data = data[data['OddsRatio'] >= min_or].copy()
     total_patients = data['TotalPatientsInGroup'].iloc[0]
@@ -178,6 +178,42 @@ def create_personalised_analysis(data, patient_conditions, time_horizon=None, ti
             text-align: left;
             border: 1px solid #ddd;
             white-space: nowrap;
+        }
+        .dataset-info {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid #e2e8f0;
+            font-size: 14px;
+        }
+        .dataset-info h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #2c5282;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 10px;
+        }
+        .info-item {
+            background-color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #e2e8f0;
+        }
+        .info-label {
+            font-weight: bold;
+            font-size: 12px;
+            color: #666;
+            display: block;
+        }
+        .info-value {
+            font-size: 14px;
+            margin-top: 2px;
+            color: #2d3748;
         }
         .trajectory-table td {
             padding: 10px;
@@ -232,7 +268,43 @@ def create_personalised_analysis(data, patient_conditions, time_horizon=None, ti
     </style>
     <div class="patient-analysis">
         <div class="analysis-container">
-            <h2>Personalised Disease Trajectory Analysis</h2>
+            <h2>Personalised Disease Trajectory Analysis</h2>"""
+    
+    # Add dataset information section if provided
+    if dataset_info:
+        html += f"""
+            <div class="dataset-info">
+                <h3>📊 Dataset & Analysis Information</h3>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">DATABASE</span>
+                        <span class="info-value">{dataset_info.get('database', 'Unknown')}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">POPULATION</span>
+                        <span class="info-value">{dataset_info.get('gender', 'Unknown')} {dataset_info.get('age_group', 'Unknown')}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">TOTAL PATIENTS</span>
+                        <span class="info-value">{total_patients:,}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">MIN ODDS RATIO</span>
+                        <span class="info-value">{min_or}</span>
+                    </div>"""
+        
+        if time_horizon:
+            html += f"""
+                    <div class="info-item">
+                        <span class="info-label">TIME HORIZON</span>
+                        <span class="info-value">{time_horizon} years</span>
+                    </div>"""
+        
+        html += """
+                </div>
+            </div>"""
+    
+    html += """
             <div class="summary-section">
                 <h3>Current Conditions:</h3>
                 <p>""" + ", ".join(f"<span class='system-tag'>{condition_categories.get(cond, 'Other')}</span> {cond}" for cond in patient_conditions) + """</p>
@@ -351,7 +423,7 @@ def create_personalised_analysis(data, patient_conditions, time_horizon=None, ti
 
     return html
 
-def create_network_visualization(data, min_or, min_freq):
+def create_network_visualization(data, min_or, min_freq, dataset_info=None):
     """Create network visualization with legends with pastel colors matching paper style"""
     net = Network(height="800px", width="100%", bgcolor='white', font_color='black', directed=True)
     
@@ -367,7 +439,7 @@ def create_network_visualization(data, min_or, min_freq):
     # Create condition categories legend HTML - Note the color50 for pastel effect
     legend_html = """
     <div style="position: absolute; top: 10px; left: 10px; background: white; padding: 10px; 
-                border: 1px solid #ccc; font-size: 12px;">
+                border: 1px solid #ccc; font-size: 12px; max-width: 250px;">
         <div style="font-weight: bold; margin-bottom: 5px;">Condition Categories</div>
     """
     for category, color in sorted(SYSTEM_COLORS.items()):
@@ -379,6 +451,21 @@ def create_network_visualization(data, min_or, min_freq):
                 {category}
             </div>
             """
+    
+    # Add dataset information if provided
+    if dataset_info:
+        legend_html += f"""
+        <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #ddd;">
+            <div style="font-weight: bold; margin-bottom: 5px;">Dataset Information</div>
+            <div style="font-size: 11px; line-height: 1.4;">
+                <strong>Database:</strong> {dataset_info.get('database', 'Unknown')}<br>
+                <strong>Population:</strong> {dataset_info.get('gender', 'Unknown')} {dataset_info.get('age_group', 'Unknown')}<br>
+                <strong>Total Patients:</strong> {data['TotalPatientsInGroup'].iloc[0]:,}<br>
+                <strong>Min OR:</strong> {min_or} | <strong>Min Freq:</strong> {min_freq}
+            </div>
+        </div>
+        """
+    
     legend_html += "</div>"
 
     # Create patient count ranges legend
@@ -601,7 +688,7 @@ def create_patient_count_legend(G):
         return """<div>Error creating legend</div>"""
 
 
-def create_network_graph(data, patient_conditions, min_or, time_horizon=None, time_margin=None):
+def create_network_graph(data, patient_conditions, min_or, time_horizon=None, time_margin=None, dataset_info=None):
     """Create network graph matching the personalised analysis visualization with cohort-style edges."""
     # Initialize network with higher resolution settings
     net = Network(height="1200px", width="100%", bgcolor='white', font_color='black', directed=True)
@@ -734,7 +821,27 @@ def create_network_graph(data, patient_conditions, min_or, time_horizon=None, ti
             • Edge thickness indicates strength of relationship<br>
             • Arrow indicates typical progression direction<br>
             • Hover over edges for detailed statistics
-        </div>
+        </div>"""
+    
+    # Add dataset information if provided
+    if dataset_info:
+        systems_legend_html += f"""
+        <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #ddd;">
+            <strong>Dataset Information:</strong><br>
+            <div style="font-size: 11px; line-height: 1.4;">
+                <strong>Database:</strong> {dataset_info.get('database', 'Unknown')}<br>
+                <strong>Population:</strong> {dataset_info.get('gender', 'Unknown')} {dataset_info.get('age_group', 'Unknown')}<br>
+                <strong>Total Patients:</strong> {data['TotalPatientsInGroup'].iloc[0]:,}<br>
+                <strong>Min OR:</strong> {min_or}"""
+        
+        if time_horizon:
+            systems_legend_html += f" | <strong>Time Horizon:</strong> {time_horizon}y"
+        
+        systems_legend_html += """
+            </div>
+        </div>"""
+    
+    systems_legend_html += """
     </div>
     """
 

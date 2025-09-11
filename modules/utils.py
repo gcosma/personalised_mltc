@@ -115,13 +115,13 @@ def extract_dataset_info(selected_file):
     else:
         gender = 'Unknown'
     
-    # Extract age group
+    # Extract age group (use human-friendly labels)
     if 'below45' in filename_lower:
-        age_group = 'below45'
+        age_group = 'below 45'
     elif '45to64' in filename_lower:
-        age_group = '45-64'
+        age_group = '45 to 64'
     elif '65plus' in filename_lower:
-        age_group = '65plus'
+        age_group = '65 plus'
     else:
         age_group = 'Unknown'
     

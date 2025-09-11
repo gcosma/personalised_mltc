@@ -16,6 +16,52 @@ from modules.pdf_styles import (
 )
 from modules.config import condition_categories
 
+def build_document_title(export_type, dataset_info, analysis_params=None):
+    """Build a descriptive document title used by the browser as the default PDF filename."""
+    if analysis_params is None:
+        analysis_params = {}
+
+    export_title_map = {
+        'personalised_analysis': 'Personalised Trajectory',
+        'network_viz': 'Cohort Network',
+        'network_graph': 'Custom Trajectory Network'
+    }
+    base = export_title_map.get(export_type, 'DECODE Analysis')
+
+    parts = ["DECODE", base]
+
+    # Dataset bits
+    db = dataset_info.get('database') if dataset_info else None
+    gender = dataset_info.get('gender') if dataset_info else None
+    age = dataset_info.get('age_group') if dataset_info else None
+    dataset_bits = " ".join(bit for bit in [db, gender, age] if bit and bit != 'Unknown')
+    if dataset_bits:
+        parts.append(dataset_bits)
+
+    # Analysis params
+    min_or = analysis_params.get('min_or')
+    if min_or is not None:
+        parts.append(f"OR≥{min_or}")
+
+    min_freq = analysis_params.get('min_freq')
+    if min_freq is not None:
+        parts.append(f"min n={min_freq}")
+
+    time_horizon = analysis_params.get('time_horizon')
+    if time_horizon is not None:
+        parts.append(f"Time {time_horizon}y")
+
+    sel = analysis_params.get('selected_conditions') or []
+    if sel:
+        shown = sel[:2]
+        if len(sel) > 2:
+            shown_title = ", ".join(shown) + f" (+{len(sel)-2} more)"
+        else:
+            shown_title = ", ".join(shown)
+        parts.append(shown_title)
+
+    return " — ".join(parts)
+
 def generate_pdf_html(content_html, export_type, dataset_info, analysis_params=None):
     """
     Convert regular HTML content to PDF-optimized HTML
@@ -52,6 +98,9 @@ def generate_pdf_html(content_html, export_type, dataset_info, analysis_params=N
     # Generate footer
     footer_html = generate_pdf_footer()
     
+    # Build document title for better default PDF filename
+    page_title = build_document_title(export_type, dataset_info, analysis_params)
+
     # Combine everything
     full_html = f"""
     <!DOCTYPE html>
@@ -59,7 +108,7 @@ def generate_pdf_html(content_html, export_type, dataset_info, analysis_params=N
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>DECODE Analysis Report - {export_type.replace('_', ' ').title()}</title>
+        <title>{page_title}</title>
         {base_styles}
         {additional_styles}
     </head>
@@ -167,6 +216,9 @@ def convert_personalised_analysis_to_pdf(html_content):
     content = re.sub(r'style="background-color:\s*#dc3545[^"]*"', 'class="pdf-risk-high"', content)
     content = re.sub(r'style="background-color:\s*#ffc107[^"]*"', 'class="pdf-risk-moderate"', content)
     content = re.sub(r'style="background-color:\s*#28a745[^"]*"', 'class="pdf-risk-low"', content)
+    # Remove duplicate class attributes introduced by replacement (keep PDF class)
+    content = re.sub(r'class="risk-badge"\s+class="(pdf-risk-(?:high|moderate|low))"', r'class="\1"', content)
+    content = re.sub(r'class="(pdf-risk-(?:high|moderate|low))"\s+class="risk-badge"', r'class="\1"', content)
     
     # Remove duplicate elements since we're adding them to the header
     # Remove the dataset info section and all its components

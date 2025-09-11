@@ -12,7 +12,7 @@ from modules.visualizations import (
     create_network_visualization, 
     create_network_graph
 )
-from modules.utils import parse_iqr
+from modules.utils import parse_iqr, generate_export_filename
 
 def create_slider_with_input(label, min_val, max_val, current_val, step, key_prefix, help_text="", is_float=True, show_tip=False, on_change_callback=None):
     """
@@ -84,7 +84,7 @@ def create_slider_with_input(label, min_val, max_val, current_val, step, key_pre
     
     return input_val
 
-def render_sensitivity_tab(data):
+def render_sensitivity_tab(data, selected_file):
     st.header("Sensitivity Analysis")
     st.markdown("""
     Explore how different odds ratio thresholds affect the number of disease
@@ -144,10 +144,18 @@ def render_sensitivity_tab(data):
                     st.plotly_chart(fig, use_container_width=True)
 
                     csv = display_df.to_csv(index=False)
+                    
+                    # Generate informative filename
+                    analysis_params = {
+                        'top_n': top_n,
+                        'file_extension': 'csv'
+                    }
+                    filename = generate_export_filename('sensitivity_analysis', selected_file, analysis_params)
+                    
                     st.download_button(
                         label="📥 Download Results",
                         data=csv,
-                        file_name="sensitivity_analysis_results.csv",
+                        file_name=filename,
                         mime="text/csv"
                     )
             
@@ -172,10 +180,19 @@ def render_sensitivity_tab(data):
                 st.plotly_chart(fig, use_container_width=True)
 
                 csv = display_df.to_csv(index=False)
+                
+                # Generate informative filename
+                num_patterns = len(results.iloc[0]['Top_Patterns'])
+                analysis_params = {
+                    'top_n': num_patterns,
+                    'file_extension': 'csv'
+                }
+                filename = generate_export_filename('sensitivity_analysis', selected_file, analysis_params)
+                
                 st.download_button(
                     label="📥 Download Results",
                     data=csv,
-                    file_name="sensitivity_analysis_results.csv",
+                    file_name=filename,
                     mime="text/csv"
                 )
 
@@ -183,7 +200,7 @@ def render_sensitivity_tab(data):
             st.error(f"Error in sensitivity analysis: {str(e)}")
             st.session_state.sensitivity_results = None
 
-def render_combinations_tab(data):
+def render_combinations_tab(data, selected_file):
     st.header("Condition Combinations Analysis")
     
     main_col, control_col = st.columns([3, 1])
@@ -287,10 +304,19 @@ def render_combinations_tab(data):
                     st.pyplot(fig)
 
                     csv = results_df.to_csv(index=False)
+                    
+                    # Generate informative filename
+                    analysis_params = {
+                        'min_freq': current_min_frequency,
+                        'min_percentage': current_min_percentage,
+                        'file_extension': 'csv'
+                    }
+                    filename = generate_export_filename('condition_combinations', selected_file, analysis_params)
+                    
                     st.download_button(
                         label="📥 Download Results",
                         data=csv,
-                        file_name="condition_combinations.csv",
+                        file_name=filename,
                         mime="text/csv"
                     )
             
@@ -314,10 +340,19 @@ def render_combinations_tab(data):
                     st.pyplot(st.session_state.combinations_fig)
 
                 csv = results_df.to_csv(index=False)
+                
+                # Generate informative filename (using session state values for existing results)
+                analysis_params = {
+                    'min_freq': st.session_state.min_frequency,
+                    'min_percentage': st.session_state.min_percentage,
+                    'file_extension': 'csv'
+                }
+                filename = generate_export_filename('condition_combinations', selected_file, analysis_params)
+                
                 st.download_button(
                     label="📥 Download Results",
                     data=csv,
-                    file_name="condition_combinations.csv",
+                    file_name=filename,
                     mime="text/csv"
                 )
 
@@ -326,7 +361,7 @@ def render_combinations_tab(data):
             st.session_state.combinations_results = None
             st.session_state.combinations_fig = None
 
-def render_personalised_analysis_tab(data):
+def render_personalised_analysis_tab(data, selected_file):
     st.header("Personalised Trajectory Analysis")
     st.markdown("""
     Analyse potential disease progressions based on a patient's current conditions,
@@ -523,10 +558,20 @@ def render_personalised_analysis_tab(data):
                     </div>
                     """
                     st.components.v1.html(html_container, height=1200, scrolling=True)
+                    
+                    # Generate informative filename
+                    analysis_params = {
+                        'selected_conditions': selected_conditions,
+                        'min_or': min_or,
+                        'time_horizon': time_horizon,
+                        'file_extension': 'html'
+                    }
+                    filename = generate_export_filename('personalised_analysis', selected_file, analysis_params)
+                    
                     st.download_button(
                         label="📥 Download Analysis",
                         data=html_content,
-                        file_name="personalised_trajectory_analysis.html",
+                        file_name=filename,
                         mime="text/html"
                     )
 
@@ -538,10 +583,20 @@ def render_personalised_analysis_tab(data):
             </div>
             """
             st.components.v1.html(html_container, height=1200, scrolling=True)
+            
+            # Generate informative filename (using session state values for existing results)
+            analysis_params = {
+                'selected_conditions': st.session_state.selected_conditions,
+                'min_or': st.session_state.min_or,
+                'time_horizon': st.session_state.time_horizon,
+                'file_extension': 'html'
+            }
+            filename = generate_export_filename('personalised_analysis', selected_file, analysis_params)
+            
             st.download_button(
                 label="📥 Download Analysis",
                 data=st.session_state.personalised_html,
-                file_name="personalised_trajectory_analysis.html",
+                file_name=filename,
                 mime="text/html"
             )
 
@@ -766,7 +821,7 @@ def create_constrained_slider_with_input(label, absolute_min, absolute_max, curr
     
     return input_val
 
-def render_trajectory_filter_tab(data):
+def render_trajectory_filter_tab(data, selected_file):
     st.header("Custom Trajectory Filter")
     st.markdown("""
     Visualise disease trajectories based on custom odds ratio and frequency thresholds.
@@ -982,10 +1037,20 @@ def render_trajectory_filter_tab(data):
                     st.session_state.network_html = html_content
                     st.components.v1.html(html_content, height=800)
 
+                    # Generate informative filename
+                    analysis_params = {
+                        'selected_conditions': selected_conditions,
+                        'min_or': min_or_val,
+                        'min_freq': min_freq_val,
+                        'time_horizon': time_horizon_val,
+                        'file_extension': 'html'
+                    }
+                    filename = generate_export_filename('trajectory_network', selected_file, analysis_params)
+
                     st.download_button(
                         label="📥 Download Network",
                         data=html_content,
-                        file_name="custom_trajectory_network.html",
+                        file_name=filename,
                         mime="text/html"
                     )
                 except Exception as viz_error:
@@ -995,14 +1060,25 @@ def render_trajectory_filter_tab(data):
         # Display existing network if available
         elif st.session_state.network_html is not None:
             st.components.v1.html(st.session_state.network_html, height=800)
+            
+            # Generate informative filename (using session state values for existing results)
+            analysis_params = {
+                'selected_conditions': st.session_state.selected_conditions,
+                'min_or': st.session_state.min_or,
+                'min_freq': getattr(st.session_state, 'min_freq', None),
+                'time_horizon': st.session_state.time_horizon,
+                'file_extension': 'html'
+            }
+            filename = generate_export_filename('trajectory_network', selected_file, analysis_params)
+            
             st.download_button(
                 label="📥 Download Network",
                 data=st.session_state.network_html,
-                file_name="custom_trajectory_network.html",
+                file_name=filename,
                 mime="text/html"
             )
 
-def render_cohort_network_tab(data):
+def render_cohort_network_tab(data, selected_file):
     st.header("Cohort Network Analysis")
     st.markdown("""
     Visualise relationships between conditions as a network graph. 
@@ -1069,11 +1145,19 @@ def render_cohort_network_tab(data):
                     # Display network
                     st.components.v1.html(html_content, height=800)
                     
+                    # Generate informative filename
+                    analysis_params = {
+                        'min_or': min_or,
+                        'min_freq': min_freq,
+                        'file_extension': 'html'
+                    }
+                    filename = generate_export_filename('cohort_network', selected_file, analysis_params)
+                    
                     # Add download button
                     st.download_button(
                         label="📥 Download Network Visualisation",
                         data=html_content,
-                        file_name="condition_network.html",
+                        file_name=filename,
                         mime="text/html"
                     )
                     

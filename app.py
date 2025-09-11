@@ -208,15 +208,15 @@ def main():
                 ])
 
                 with tabs[0]:
-                    render_sensitivity_tab(data)
+                    render_sensitivity_tab(data, selected_file)
                 with tabs[1]:
-                    render_combinations_tab(data)
+                    render_combinations_tab(data, selected_file)
                 with tabs[2]:
-                    render_personalised_analysis_tab(data)
+                    render_personalised_analysis_tab(data, selected_file)
                 with tabs[3]:
-                    render_trajectory_filter_tab(data)
+                    render_trajectory_filter_tab(data, selected_file)
                 with tabs[4]:
-                    render_cohort_network_tab(data)
+                    render_cohort_network_tab(data, selected_file)
 
             except Exception as e:
                 st.error(f"Error processing data: {str(e)}")

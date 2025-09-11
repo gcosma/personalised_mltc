@@ -129,8 +129,8 @@ def create_combinations_plot(results_df):
     plt.tight_layout()
     return fig
 
-def create_personalized_analysis(data, patient_conditions, time_horizon=None, time_margin=None, min_or=2.0):
-    """Create a personalized analysis of disease trajectories for a patient's conditions"""
+def create_personalised_analysis(data, patient_conditions, time_horizon=None, time_margin=None, min_or=2.0):
+    """Create a personalised analysis of disease trajectories for a patient's conditions"""
     filtered_data = data[data['OddsRatio'] >= min_or].copy()
     total_patients = data['TotalPatientsInGroup'].iloc[0]
 
@@ -232,7 +232,7 @@ def create_personalized_analysis(data, patient_conditions, time_horizon=None, ti
     </style>
     <div class="patient-analysis">
         <div class="analysis-container">
-            <h2>Personalized Disease Trajectory Analysis</h2>
+            <h2>Personalised Disease Trajectory Analysis</h2>
             <div class="summary-section">
                 <h3>Current Conditions:</h3>
                 <p>""" + ", ".join(f"<span class='system-tag'>{condition_categories.get(cond, 'Other')}</span> {cond}" for cond in patient_conditions) + """</p>
@@ -602,7 +602,7 @@ def create_patient_count_legend(G):
 
 
 def create_network_graph(data, patient_conditions, min_or, time_horizon=None, time_margin=None):
-    """Create network graph matching the personalized analysis visualization with cohort-style edges."""
+    """Create network graph matching the personalised analysis visualization with cohort-style edges."""
     # Initialize network with higher resolution settings
     net = Network(height="1200px", width="100%", bgcolor='white', font_color='black', directed=True)
 

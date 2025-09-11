@@ -8,7 +8,7 @@ from modules.analysis import perform_sensitivity_analysis, analyze_condition_com
 from modules.visualizations import (
     create_sensitivity_plot, 
     create_combinations_plot, 
-    create_personalized_analysis, 
+    create_personalised_analysis, 
     create_network_visualization, 
     create_network_graph
 )
@@ -505,17 +505,17 @@ def render_personalised_analysis_tab(data):
                 
                 if not has_results:
                     st.warning("No trajectories found matching the selected conditions and filter criteria. Please try adjusting the filters or selecting different conditions.")
-                    st.session_state.personalized_html = None
+                    st.session_state.personalised_html = None
                 else:
                     # Generate new analysis
-                    html_content = create_personalized_analysis(
+                    html_content = create_personalised_analysis(
                         data,
                         selected_conditions,
                         time_horizon,
                         time_margin,
                         min_or
                     )
-                    st.session_state.personalized_html = html_content
+                    st.session_state.personalised_html = html_content
 
                     html_container = f"""
                     <div style="min-height: 800px; width: 100%; padding: 20px;">
@@ -531,16 +531,16 @@ def render_personalised_analysis_tab(data):
                     )
 
         # Display existing analysis if available
-        elif st.session_state.personalized_html is not None:
+        elif st.session_state.personalised_html is not None:
             html_container = f"""
             <div style="min-height: 800px; width: 100%; padding: 20px;">
-                {st.session_state.personalized_html}
+                {st.session_state.personalised_html}
             </div>
             """
             st.components.v1.html(html_container, height=1200, scrolling=True)
             st.download_button(
                 label="📥 Download Analysis",
-                data=st.session_state.personalized_html,
+                data=st.session_state.personalised_html,
                 file_name="personalised_trajectory_analysis.html",
                 mime="text/html"
             )

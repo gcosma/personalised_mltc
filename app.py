@@ -23,7 +23,7 @@ from modules.analysis import perform_sensitivity_analysis, analyze_condition_com
 from modules.visualizations import (
     create_sensitivity_plot, 
     create_combinations_plot, 
-    create_personalized_analysis, 
+    create_personalised_analysis, 
     create_network_visualization, 
     create_patient_count_legend, 
     create_network_graph
@@ -45,7 +45,7 @@ def clear_session_state():
     st.session_state.network_html = None
     st.session_state.combinations_results = None
     st.session_state.combinations_fig = None
-    st.session_state.personalized_html = None
+    st.session_state.personalised_html = None
     st.session_state.selected_conditions = []
     st.session_state.min_or = 2.0
     st.session_state.time_horizon = 5
@@ -73,8 +73,8 @@ def main():
         st.session_state.combinations_results = None
     if 'combinations_fig' not in st.session_state:
         st.session_state.combinations_fig = None
-    if 'personalized_html' not in st.session_state:
-        st.session_state.personalized_html = None
+    if 'personalised_html' not in st.session_state:
+        st.session_state.personalised_html = None
     if 'selected_conditions' not in st.session_state:
         st.session_state.selected_conditions = []
     if 'min_or' not in st.session_state:

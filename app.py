@@ -202,8 +202,8 @@ def main():
                 tabs = st.tabs([
                     "📈 Sensitivity Analysis",
                     "🔍 Condition Combinations",
-                    "👤 Personalised Analysis",
-                    "🎯 Personalised Trajectory Filter",
+                    "👤 Cohort-based Personalised Risk Analysis",
+                    "🎯 Cohort-based Personalised Risk Map",
                     "🌐 Cohort Network"  
                 ])
 

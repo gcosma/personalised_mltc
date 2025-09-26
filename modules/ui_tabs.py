@@ -389,6 +389,8 @@ def render_personalised_analysis_tab(data, selected_file):
             def on_condition_select_personal():
                 st.session_state.selected_conditions = st.session_state.personal_conditions_select
                 newly_selected_conditions = st.session_state.personal_conditions_select
+                # Sync with trajectory tab widget
+                st.session_state.custom_conditions_select = st.session_state.personal_conditions_select
 
                 # Get constraints for newly selected conditions to set appropriate defaults
                 _, _, constraint_max_time, _ = get_condition_constraints(
@@ -458,6 +460,14 @@ def render_personalised_analysis_tab(data, selected_file):
                                          if details['max_or'] == constraint_max_or]
                     or_info_text = f"Selected maximum available for selected conditions ({', '.join(limiting_conditions)})"
                 
+                # Custom callback for cross-tab synchronization
+                def on_personal_or_change():
+                    # Sync to custom tab widgets
+                    if 'personal_min_or_slider' in st.session_state:
+                        current_value = st.session_state.personal_min_or_slider
+                        st.session_state.custom_min_or_slider = current_value
+                        st.session_state.custom_min_or_input = current_value
+
                 # Create constrained sliders
                 min_or = create_constrained_slider_with_input(
                     "Minimum Odds Ratio",
@@ -468,7 +478,8 @@ def render_personalised_analysis_tab(data, selected_file):
                     is_float=True, show_tip=True,
                     constraint_max=constraint_max_or,
                     constraint_message=or_constraint_msg,
-                    info_text=or_info_text
+                    info_text=or_info_text,
+                    on_change_callback=on_personal_or_change
                 )
                 st.session_state.min_or = min_or
                 
@@ -732,9 +743,9 @@ def get_condition_constraints(data, selected_conditions):
     
     return max_min_or, max_min_freq, max_time_horizon, condition_details
 
-def create_constrained_slider_with_input(label, absolute_min, absolute_max, current_val, step, key_prefix, 
-                                       help_text="", is_float=True, show_tip=False, 
-                                       constraint_max=None, constraint_message="", info_text="", force_sync=False):
+def create_constrained_slider_with_input(label, absolute_min, absolute_max, current_val, step, key_prefix,
+                                       help_text="", is_float=True, show_tip=False,
+                                       constraint_max=None, constraint_message="", info_text="", force_sync=False, on_change_callback=None):
     """
     Create a slider that snaps back to constraint_max if user tries to exceed it.
     """
@@ -781,10 +792,18 @@ def create_constrained_slider_with_input(label, absolute_min, absolute_max, curr
             else:
                 rounded_str = str(snapped_value)
             st.session_state[constraint_key] = f"ℹ️ Limited to {rounded_str}: {constraint_message}"
+
+            # Call additional callback if provided (for constraint snapping in slider)
+            if on_change_callback:
+                on_change_callback()
         else:
             # Normal behavior
             st.session_state[input_key] = max(absolute_min, min(effective_max, attempted_value))
             st.session_state[constraint_key] = ""
+
+        # Call additional callback if provided
+        if on_change_callback:
+            on_change_callback()
     
     def on_input_change():
         attempted_value = st.session_state[input_key]
@@ -799,6 +818,10 @@ def create_constrained_slider_with_input(label, absolute_min, absolute_max, curr
             else:
                 min_str = str(snapped_value)
             st.session_state[constraint_key] = f"ℹ️ Minimum value is {min_str}"
+
+            # Call additional callback if provided (for minimum constraint in input)
+            if on_change_callback:
+                on_change_callback()
         elif attempted_value > absolute_max:
             # Snap to effective maximum (constraint max if available, otherwise absolute max)
             effective_snap_max = constraint_max if constraint_max is not None else absolute_max
@@ -811,12 +834,20 @@ def create_constrained_slider_with_input(label, absolute_min, absolute_max, curr
                 else:
                     rounded_str = str(snapped_value)
                 st.session_state[constraint_key] = f"ℹ️ Limited to {rounded_str}: {constraint_message}"
+
+                # Call additional callback if provided (for constraint max in input)
+                if on_change_callback:
+                    on_change_callback()
             else:
                 if is_float:
                     max_str = f"{snapped_value:.2f}"
                 else:
                     max_str = str(snapped_value)
                 st.session_state[constraint_key] = f"ℹ️ Maximum value is {max_str}"
+
+                # Call additional callback if provided (for absolute max in input)
+                if on_change_callback:
+                    on_change_callback()
         elif constraint_max is not None and attempted_value > constraint_max:
             # Snap back to constraint max (rounded consistently)
             snapped_value = float(f"{constraint_max:.2f}") if is_float else int(constraint_max)
@@ -827,10 +858,18 @@ def create_constrained_slider_with_input(label, absolute_min, absolute_max, curr
             else:
                 rounded_str = str(snapped_value)
             st.session_state[constraint_key] = f"ℹ️ Limited to {rounded_str}: {constraint_message}"
+
+            # Call additional callback if provided (for constraint max snapping in input)
+            if on_change_callback:
+                on_change_callback()
         else:
             # Normal behavior
             st.session_state[slider_key] = max(absolute_min, min(effective_max, attempted_value))
             st.session_state[constraint_key] = ""
+
+        # Call additional callback if provided
+        if on_change_callback:
+            on_change_callback()
     
     # Create columns
     col1, col2 = st.columns([2, 1])
@@ -881,16 +920,17 @@ def render_trajectory_filter_tab(data, selected_file):
     # Get total unique conditions from the unfiltered data
     total_unique_conditions_unfiltered = sorted(set(data['ConditionA'].unique()) | set(data['ConditionB'].unique()))
 
+    # Initialize variables that will be used outside the try/except block
+    selected_conditions = []
+    generate_button = False
+
     main_col, control_col = st.columns([3, 1])
 
     with control_col:
         with st.container():
             st.markdown('<div class="control-panel">', unsafe_allow_html=True)
             st.markdown("### Control Panel")
-            
-            # Initialize button state
-            generate_button = False
-            
+
             try:
                 # Get absolute min/max values from data for resetting and slider ranges (rounded to avoid precision issues)
                 absolute_min_or = round(data['OddsRatio'].min(), 2)
@@ -902,8 +942,10 @@ def render_trajectory_filter_tab(data, selected_file):
 
                 # Condition selection callback to reset filters
                 def on_condition_select_callback():
-                    st.session_state.selected_conditions = st.session_state.custom_select
-                    newly_selected_conditions = st.session_state.custom_select
+                    st.session_state.selected_conditions = st.session_state.custom_conditions_select
+                    newly_selected_conditions = st.session_state.custom_conditions_select
+                    # Sync with personal analysis tab widget
+                    st.session_state.personal_conditions_select = st.session_state.custom_conditions_select
 
                     # Reset OR and Freq filters to their minimums
                     st.session_state.min_or = absolute_min_or
@@ -945,11 +987,12 @@ def render_trajectory_filter_tab(data, selected_file):
                     "Select Initial Conditions",
                     options=total_unique_conditions_unfiltered,
                     default=st.session_state.selected_conditions,
-                    key="custom_select",
+                    key="custom_conditions_select",
                     on_change=on_condition_select_callback,
                     help="Choose conditions to begin. Filters will appear after selection."
                 )
-                
+
+                # Update the outer scope variable
                 selected_conditions = st.session_state.selected_conditions
 
                 # --- Step 2: Show filters only after conditions are selected ---
@@ -980,6 +1023,14 @@ def render_trajectory_filter_tab(data, selected_file):
                                              if details['max_time'] == constraint_max_time]
                         time_constraint_msg = f"Maximum available for selected conditions ({', '.join(limiting_conditions)})"
 
+                    # Custom callback for cross-tab synchronization
+                    def on_custom_or_change():
+                        # Sync to personal analysis tab widgets
+                        if 'custom_min_or_slider' in st.session_state:
+                            current_value = st.session_state.custom_min_or_slider
+                            st.session_state.personal_min_or_slider = current_value
+                            st.session_state.personal_min_or_input = current_value
+
                     # Create constrained sliders
                     min_or = create_constrained_slider_with_input(
                         "Minimum Odds Ratio",
@@ -989,7 +1040,8 @@ def render_trajectory_filter_tab(data, selected_file):
                         "Filter trajectories by minimum odds ratio",
                         is_float=True, show_tip=True,
                         constraint_max=constraint_max_or,
-                        constraint_message=or_constraint_msg
+                        constraint_message=or_constraint_msg,
+                        on_change_callback=on_custom_or_change
                     )
 
                     min_freq = create_constrained_slider_with_input(

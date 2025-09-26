@@ -57,9 +57,10 @@ def clear_session_state():
     # Clear all slider/textbox widget states to ensure proper reset on dataset change
     widget_keys_to_clear = []
     for key in list(st.session_state.keys()):
-        if any(key.endswith(suffix) for suffix in ['_slider', '_input', '_constraint_msg']):
+        if (any(key.endswith(suffix) for suffix in ['_slider', '_input', '_constraint_msg']) or
+            key in ['personal_conditions_select', 'custom_conditions_select']):
             widget_keys_to_clear.append(key)
-    
+
     for key in widget_keys_to_clear:
         del st.session_state[key]
 
